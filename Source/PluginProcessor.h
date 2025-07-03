@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <cmath>
+#include <juce_dsp/juce_dsp.h>
 
 class VaclisDynamicEQAudioProcessor  : public juce::AudioProcessor
 {
@@ -89,6 +90,24 @@ private:
     
     GainProcessor inputGain;
     GainProcessor outputGain;
+    
+    // EQ Band using chowdsp State Variable Filter
+    struct EQBand
+    {
+        juce::dsp::IIR::Filter<float> filter;
+        juce::String freqParamID;
+        juce::String gainParamID;
+        juce::String qParamID;
+        ParameterManager* manager = nullptr;
+        double currentSampleRate = 44100.0;
+        
+        void setup(const juce::String& freqID, const juce::String& gainID, const juce::String& qID, ParameterManager* paramManager);
+        void prepare(double sampleRate, int samplesPerBlock);
+        void processBuffer(juce::AudioBuffer<float>& buffer);
+        void updateParameters();
+    };
+    
+    EQBand eqBand;
     
     // Processing helper methods
     void updateParameterSmoothers();

@@ -15,6 +15,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(JUCE)
 
+# Add chowdsp_utils
+add_subdirectory(third-party/chowdsp_utils)
+
 # Plugin configuration
 juce_add_plugin(vaclis-DynamicEQ
     COMPANY_NAME "Vaclis Audio"
@@ -68,10 +71,13 @@ target_link_libraries(vaclis-DynamicEQ
         juce::juce_audio_utils
         juce::juce_core
         juce::juce_data_structures
+        juce::juce_dsp
         juce::juce_events
         juce::juce_graphics
         juce::juce_gui_basics
         juce::juce_gui_extra
+        chowdsp_filters
+        chowdsp_eq
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

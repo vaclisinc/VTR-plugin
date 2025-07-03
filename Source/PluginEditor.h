@@ -25,6 +25,19 @@ private:
     juce::Slider outputGainSlider;
     juce::Label outputGainLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> outputGainAttachment;
+    
+    // EQ Controls
+    juce::Slider eqFreqSlider;
+    juce::Label eqFreqLabel;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eqFreqAttachment;
+    
+    juce::Slider eqGainSlider;
+    juce::Label eqGainLabel;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eqGainAttachment;
+    
+    juce::Slider eqQSlider;
+    juce::Label eqQLabel;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eqQAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (VaclisDynamicEQAudioProcessorEditor)
 };

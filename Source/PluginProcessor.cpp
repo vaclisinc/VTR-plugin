@@ -19,10 +19,16 @@ VaclisDynamicEQAudioProcessor::VaclisDynamicEQAudioProcessor()
     // Setup scalable parameter management
     parameterManager.addParameter("input_gain", parameters);
     parameterManager.addParameter("output_gain", parameters);
+    parameterManager.addParameter("eq_freq", parameters);
+    parameterManager.addParameter("eq_gain", parameters);
+    parameterManager.addParameter("eq_q", parameters);
     
     // Setup gain processors with new system
     inputGain.setup("input_gain", &parameterManager);
     outputGain.setup("output_gain", &parameterManager);
+    
+    // Setup EQ band
+    eqBand.setup("eq_freq", "eq_gain", "eq_q", &parameterManager);
 }
 
 VaclisDynamicEQAudioProcessor::~VaclisDynamicEQAudioProcessor()
@@ -106,10 +112,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout VaclisDynamicEQAudioProcesso
     addGainParameter(layout, "input_gain", "Input Gain", 0.0f);
     addGainParameter(layout, "output_gain", "Output Gain", 0.0f);
     
-    // Future EQ bands will be easy to add:
-    // addGainParameter(layout, "band1_gain", "Band 1 Gain", 0.0f);
-    // addFrequencyParameter(layout, "band1_freq", "Band 1 Frequency", 1000.0f);
-    // addQParameter(layout, "band1_q", "Band 1 Q", 1.0f);
+    // Single EQ band parameters (Step 3)
+    addFrequencyParameter(layout, "eq_freq", "EQ Frequency", 1000.0f);
+    addGainParameter(layout, "eq_gain", "EQ Gain", 0.0f);
+    addQParameter(layout, "eq_q", "EQ Q", 1.0f);
 
     return layout;
 }
@@ -198,6 +204,7 @@ void VaclisDynamicEQAudioProcessor::ParameterManager::prepare(double sampleRate,
         {
             currentValue = juce::Decibels::decibelsToGain(currentValue);
         }
+        // For freq/Q parameters, use direct values
         
         smoothedValues[i].setCurrentAndTargetValue(currentValue);
     }
@@ -337,10 +344,11 @@ void VaclisDynamicEQAudioProcessor::GainProcessor::processBuffer(juce::AudioBuff
 
 void VaclisDynamicEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    juce::ignoreUnused (samplesPerBlock);
-    
     // Prepare scalable parameter system
     parameterManager.prepare(sampleRate, 30.0);  // 30ms smoothing
+    
+    // Prepare EQ band
+    eqBand.prepare(sampleRate, samplesPerBlock);
 }
 
 void VaclisDynamicEQAudioProcessor::releaseResources()
@@ -421,14 +429,9 @@ void VaclisDynamicEQAudioProcessor::processInputGain(juce::AudioBuffer<float>& b
 
 void VaclisDynamicEQAudioProcessor::processEQ(juce::AudioBuffer<float>& buffer)
 {
-    // Placeholder for future EQ processing
-    juce::ignoreUnused(buffer);
-    
-    // Future implementation will be clean and scalable:
-    // for (auto& band : eqBands) {
-    //     band.updateParameters();  // Update freq, Q, gain smoothers via ParameterManager
-    //     band.processBuffer(buffer);  // Apply filtering + gain
-    // }
+    // Single EQ band processing (Step 3)
+    eqBand.updateParameters();
+    eqBand.processBuffer(buffer);
 }
 
 void VaclisDynamicEQAudioProcessor::processOutputGain(juce::AudioBuffer<float>& buffer)
@@ -460,6 +463,59 @@ void VaclisDynamicEQAudioProcessor::setStateInformation (const void* data, int s
     if (xmlState.get() != nullptr)
         if (xmlState->hasTagName (parameters.state.getType()))
             parameters.replaceState (juce::ValueTree::fromXml (*xmlState));
+}
+
+// EQBand implementation
+void VaclisDynamicEQAudioProcessor::EQBand::setup(const juce::String& freqID, const juce::String& gainID, const juce::String& qID, ParameterManager* paramManager)
+{
+    freqParamID = freqID;
+    gainParamID = gainID;
+    qParamID = qID;
+    manager = paramManager;
+}
+
+void VaclisDynamicEQAudioProcessor::EQBand::prepare(double sampleRate, int samplesPerBlock)
+{
+    currentSampleRate = sampleRate;
+    
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
+    spec.numChannels = 2; // Stereo
+    
+    filter.prepare(spec);
+}
+
+void VaclisDynamicEQAudioProcessor::EQBand::updateParameters()
+{
+    if (manager == nullptr) return;
+    
+    // Get current parameter values (non-smoothed for frequency and Q)
+    float frequency = manager->parameterPointers[2]->load(); // eq_freq
+    float gainDb = manager->parameterPointers[3]->load();    // eq_gain  
+    float q = manager->parameterPointers[4]->load();         // eq_q
+    
+    // Safety checks
+    if (!std::isfinite(frequency) || !std::isfinite(gainDb) || !std::isfinite(q))
+        return;
+        
+    // Clamp to safe ranges
+    frequency = juce::jlimit(20.0f, 20000.0f, frequency);
+    gainDb = juce::jlimit(-12.0f, 12.0f, gainDb);
+    q = juce::jlimit(0.1f, 10.0f, q);
+    
+    // Update filter parameters - create bell filter coefficients
+    auto coeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+        currentSampleRate, frequency, q, juce::Decibels::decibelsToGain(gainDb));
+    filter.coefficients = coeffs;
+}
+
+void VaclisDynamicEQAudioProcessor::EQBand::processBuffer(juce::AudioBuffer<float>& buffer)
+{
+    // Process through JUCE DSP IIR filter
+    juce::dsp::AudioBlock<float> audioBlock(buffer);
+    juce::dsp::ProcessContextReplacing<float> context(audioBlock);
+    filter.process(context);
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
