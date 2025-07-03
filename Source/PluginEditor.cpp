@@ -107,11 +107,11 @@ void VaclisDynamicEQAudioProcessorEditor::paint (juce::Graphics& g)
     // Draw the plugin name and version
     g.setColour (juce::Colours::white);
     g.setFont (20.0f);
-    g.drawFittedText ("Dynamic EQ - Step 3 Complete", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
+    g.drawFittedText ("Dynamic EQ - Step 3.1 Complete", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
     
     g.setFont (12.0f);
     g.setColour (juce::Colours::lightgrey);
-    g.drawFittedText ("Single Band EQ with Professional Filters", 
+    g.drawFittedText ("Single Band EQ with Professional Filters with refactor", 
                       getLocalBounds().removeFromTop(120), 
                       juce::Justification::centred, 1);
 }

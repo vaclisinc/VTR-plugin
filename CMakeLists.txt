@@ -42,6 +42,12 @@ target_sources(vaclis-DynamicEQ
         Source/PluginProcessor.h
         Source/PluginEditor.cpp
         Source/PluginEditor.h
+        Source/Parameters/ParameterManager.cpp
+        Source/Parameters/ParameterManager.h
+        Source/DSP/EQBand.cpp
+        Source/DSP/EQBand.h
+        Source/DSP/GainProcessor.cpp
+        Source/DSP/GainProcessor.h
 )
 
 # Compile definitions

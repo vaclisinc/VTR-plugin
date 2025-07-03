@@ -3,7 +3,9 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <cmath>
-#include <juce_dsp/juce_dsp.h>
+#include "Parameters/ParameterManager.h"
+#include "DSP/EQBand.h"
+#include "DSP/GainProcessor.h"
 
 class VaclisDynamicEQAudioProcessor  : public juce::AudioProcessor
 {
@@ -62,52 +64,11 @@ private:
     
     juce::AudioProcessorValueTreeState parameters;
     
-    // Scalable parameter management system
-    struct ParameterManager
-    {
-        std::vector<juce::SmoothedValue<float>> smoothedValues;
-        std::vector<std::atomic<float>*> parameterPointers;
-        std::vector<juce::String> parameterIDs;
-        
-        void addParameter(const juce::String& parameterID, juce::AudioProcessorValueTreeState& apvts);
-        void prepare(double sampleRate, double smoothingTimeMs = 30.0);
-        void updateAllTargets();
-        juce::SmoothedValue<float>* getSmoothedValue(const juce::String& parameterID);
-        float getCurrentValue(const juce::String& parameterID);
-    };
-    
-    ParameterManager parameterManager;
-    
-    // Reusable gain processor class - now uses ParameterManager
-    struct GainProcessor
-    {
-        juce::String parameterID;
-        ParameterManager* manager = nullptr;
-        
-        void setup(const juce::String& paramID, ParameterManager* paramManager);
-        void processBuffer(juce::AudioBuffer<float>& buffer);
-    };
-    
-    GainProcessor inputGain;
-    GainProcessor outputGain;
-    
-    // EQ Band using chowdsp State Variable Filter
-    struct EQBand
-    {
-        juce::dsp::IIR::Filter<float> filter;
-        juce::String freqParamID;
-        juce::String gainParamID;
-        juce::String qParamID;
-        ParameterManager* manager = nullptr;
-        double currentSampleRate = 44100.0;
-        
-        void setup(const juce::String& freqID, const juce::String& gainID, const juce::String& qID, ParameterManager* paramManager);
-        void prepare(double sampleRate, int samplesPerBlock);
-        void processBuffer(juce::AudioBuffer<float>& buffer);
-        void updateParameters();
-    };
-    
-    EQBand eqBand;
+    // Modular DSP components
+    DynamicEQ::ParameterManager parameterManager;
+    DynamicEQ::GainProcessor inputGain;
+    DynamicEQ::GainProcessor outputGain;
+    DynamicEQ::EQBand eqBand;
     
     // Processing helper methods
     void updateParameterSmoothers();
