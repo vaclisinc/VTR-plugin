@@ -1,0 +1,21 @@
+#pragma once
+
+#include <juce_gui_basics/juce_gui_basics.h>
+#include "PluginProcessor.h"
+
+class VaclisDynamicEQAudioProcessorEditor  : public juce::AudioProcessorEditor
+{
+public:
+    VaclisDynamicEQAudioProcessorEditor (VaclisDynamicEQAudioProcessor&);
+    ~VaclisDynamicEQAudioProcessorEditor() override;
+
+    void paint (juce::Graphics&) override;
+    void resized() override;
+
+private:
+    VaclisDynamicEQAudioProcessor& audioProcessor;
+    
+    std::unique_ptr<juce::ComponentBoundsConstrainer> constrainer;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (VaclisDynamicEQAudioProcessorEditor)
+};
