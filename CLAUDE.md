@@ -13,6 +13,8 @@
 - **CLEAN CODE** - Prioritize expandability over features
 - **TEST EVERYTHING** - Unit tests + Function tests + user confirmation
 
+
+
 ## File Structure
 ```
 PROJECT-ROADMAP.md       # The implementation roadmap with time estimates
@@ -46,6 +48,16 @@ Based on requirements, write `docs/step-X-implementation-plan.md`:
 
 ### 5. Only Then Implement
 Execute the approved subtasks one by one
+
+### 6. Write trace code docs "step-X-explanation.md"
+
+### 7. Instruction of how to test
+
+### 8. after testing finish update progress tracker
+
+### 9. git add files, write commit message, and push (requires user authorization)
+commit message only step name and summarize of the step implementation, no need to say "written by claude code
+**Remember: Steps 9 need user authorization before proceeding**
 
 ## Example First Message
 ```

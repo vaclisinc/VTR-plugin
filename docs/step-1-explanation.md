@@ -41,6 +41,7 @@ vaclis-DynamicEQ/
 - Location: `PluginProcessor.cpp:3-16`
 - Sets up input/output bus configuration
 - Supports mono and stereo (expandable to surround)
+my trace > here set default to stereo, in isBusesLayoutSupported() supporrted mono
 
 **Audio Setup (`prepareToPlay()`)**:
 - Location: `PluginProcessor.cpp:85-90`
@@ -73,6 +74,7 @@ vaclis-DynamicEQ/
 - Location: `PluginEditor.cpp:3-8`
 - Sets initial size (400x300)
 - Stores reference to audio processor
+> my trace: add resizable
 
 **Drawing (`paint()`)**:
 - Location: `PluginEditor.cpp:14-30`
