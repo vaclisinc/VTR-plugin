@@ -13,7 +13,7 @@ A professional multi-band dynamic EQ plugin built with JUCE and modular architec
 
 1. **Clone and initialize submodules:**
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/vaclisPG/vaclis-DynamicEQ.git
 cd vac-first-plugin
 git submodule update --init --recursive
 ```
@@ -106,7 +106,7 @@ Load the plugin in your DAW (tested with REAPER):
 
 ## Dependencies
 
-- **JUCE Framework 7.0.9**: Core audio plugin framework
+- **JUCE Framework 7.0.9**: Core audio plugin framework 
 - **chowdsp_utils**: Professional DSP library (integrated as submodule)
 
 ## Contributing
