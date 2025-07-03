@@ -16,6 +16,15 @@ private:
     VaclisDynamicEQAudioProcessor& audioProcessor;
     
     std::unique_ptr<juce::ComponentBoundsConstrainer> constrainer;
+    
+    // GUI Components
+    juce::Slider inputGainSlider;
+    juce::Label inputGainLabel;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> inputGainAttachment;
+    
+    juce::Slider outputGainSlider;
+    juce::Label outputGainLabel;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> outputGainAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (VaclisDynamicEQAudioProcessorEditor)
 };

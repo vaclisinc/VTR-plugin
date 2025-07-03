@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
+#include <cmath>
 
 class VaclisDynamicEQAudioProcessor  : public juce::AudioProcessor
 {
@@ -37,6 +38,66 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    juce::AudioProcessorValueTreeState& getValueTreeState() { return parameters; }
+
 private:
+    static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    
+    // Scalable parameter creation helpers
+    static void addGainParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                const juce::String& parameterID,
+                                const juce::String& parameterName,
+                                float defaultValue = 0.0f);
+    
+    static void addFrequencyParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                     const juce::String& parameterID,
+                                     const juce::String& parameterName,
+                                     float defaultValue = 1000.0f);
+    
+    static void addQParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                             const juce::String& parameterID,
+                             const juce::String& parameterName,
+                             float defaultValue = 1.0f);
+    
+    juce::AudioProcessorValueTreeState parameters;
+    
+    // Scalable parameter management system
+    struct ParameterManager
+    {
+        std::vector<juce::SmoothedValue<float>> smoothedValues;
+        std::vector<std::atomic<float>*> parameterPointers;
+        std::vector<juce::String> parameterIDs;
+        
+        void addParameter(const juce::String& parameterID, juce::AudioProcessorValueTreeState& apvts);
+        void prepare(double sampleRate, double smoothingTimeMs = 30.0);
+        void updateAllTargets();
+        juce::SmoothedValue<float>* getSmoothedValue(const juce::String& parameterID);
+        float getCurrentValue(const juce::String& parameterID);
+    };
+    
+    ParameterManager parameterManager;
+    
+    // Reusable gain processor class - now uses ParameterManager
+    struct GainProcessor
+    {
+        juce::String parameterID;
+        ParameterManager* manager = nullptr;
+        
+        void setup(const juce::String& paramID, ParameterManager* paramManager);
+        void processBuffer(juce::AudioBuffer<float>& buffer);
+    };
+    
+    GainProcessor inputGain;
+    GainProcessor outputGain;
+    
+    // Processing helper methods
+    void updateParameterSmoothers();
+    void processInputGain(juce::AudioBuffer<float>& buffer);
+    void processEQ(juce::AudioBuffer<float>& buffer);
+    void processOutputGain(juce::AudioBuffer<float>& buffer);
+    
+    // Safety monitoring
+    bool checkForDangerousGainLevels() const;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (VaclisDynamicEQAudioProcessor)
 };
