@@ -8,6 +8,10 @@
 
 namespace DynamicEQ {
 
+// Constants for maintainability
+static constexpr int MAX_BANDS = 8;  // Future expansion ready
+static constexpr int CURRENT_BANDS = 4;  // Current implementation
+
 /**
  * Filter types supported by the EQ band
  */
@@ -207,6 +211,7 @@ public:
     
     // Band control
     void setParameterManager(ParameterManager* manager) { parameterManager = manager; }
+    void setValueTreeState(juce::AudioProcessorValueTreeState* apvts) { valueTreeState = apvts; }
     bool isBandEnabled(int bandIndex) const;
     bool isBandSoloed(int bandIndex) const;
     
@@ -214,6 +219,7 @@ private:
     std::vector<std::unique_ptr<EQBand>> bands;
     double currentSampleRate = 44100.0;
     ParameterManager* parameterManager = nullptr;
+    juce::AudioProcessorValueTreeState* valueTreeState = nullptr;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MultiBandEQ)
 };

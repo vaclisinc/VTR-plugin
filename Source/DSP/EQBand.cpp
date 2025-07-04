@@ -52,8 +52,6 @@ void EQBand::updateParameters()
     float rawTypeValue = manager->parameterPointers[paramIndices.type]->load();
     int filterTypeInt = static_cast<int>(rawTypeValue);
     
-    DBG("EQBand::updateParameters - rawTypeValue=" << rawTypeValue << ", filterTypeInt=" << filterTypeInt);
-    
     // Safety checks
     if (!std::isfinite(frequency) || !std::isfinite(gainDb) || !std::isfinite(q))
         return;
@@ -69,8 +67,6 @@ void EQBand::updateParameters()
     lastGainDb = gainDb;
     lastQ = q;
     lastFilterType = static_cast<FilterType>(filterTypeInt);
-    
-    DBG("EQBand::updateParameters - Setting filter type to: " << static_cast<int>(lastFilterType));
     
     // Update filter parameters (clean and maintainable!)
     updateFilterParameters(frequency, gainDb, q, lastFilterType);
@@ -137,9 +133,7 @@ void EQBand::cacheParameterIndices()
         if (manager->parameterIDs[i] == typeParamID) paramIndices.type = static_cast<int>(i);
     }
     
-    DBG("EQBand parameter indices cached: freq=" << paramIndices.frequency 
-        << ", gain=" << paramIndices.gain << ", q=" << paramIndices.q 
-        << ", type=" << paramIndices.type);
+    // Parameter indices cached successfully
 }
 
 void EQBand::updateFilterParameters(float frequency, float gainDb, float q, FilterType filterType)
@@ -148,34 +142,29 @@ void EQBand::updateFilterParameters(float frequency, float gainDb, float q, Filt
     switch (filterType)
     {
         case FilterType::Bell:
-            DBG("Updating Bell filter: freq=" << frequency << ", gain=" << gainDb << ", Q=" << q);
             bellFilter.setCutoffFrequency(frequency);
             bellFilter.setGainDecibels(gainDb);
             bellFilter.setQValue(q);
             break;
             
         case FilterType::HighShelf:
-            DBG("Updating HighShelf filter: freq=" << frequency << ", gain=" << gainDb << ", Q=" << q);
             highShelfFilter.setCutoffFrequency(frequency);
             highShelfFilter.setGainDecibels(gainDb);
             highShelfFilter.setQValue(q);
             break;
             
         case FilterType::LowShelf:
-            DBG("Updating LowShelf filter: freq=" << frequency << ", gain=" << gainDb << ", Q=" << q);
             lowShelfFilter.setCutoffFrequency(frequency);
             lowShelfFilter.setGainDecibels(gainDb);
             lowShelfFilter.setQValue(q);
             break;
             
         case FilterType::HighPass:
-            DBG("Updating HighPass filter: freq=" << frequency);
             highPassFilter.setCutoffFrequency(frequency);
             highPassFilter.setQValue(1.0f / juce::MathConstants<float>::sqrt2); // Butterworth Q
             break;
             
         case FilterType::LowPass:
-            DBG("Updating LowPass filter: freq=" << frequency);
             lowPassFilter.setCutoffFrequency(frequency);
             lowPassFilter.setQValue(1.0f / juce::MathConstants<float>::sqrt2); // Butterworth Q
             break;
@@ -268,22 +257,28 @@ void MultiBandEQ::processBuffer(juce::AudioBuffer<float>& buffer)
 
 bool MultiBandEQ::isBandEnabled(int bandIndex) const
 {
-    if (!parameterManager || bandIndex < 0 || bandIndex >= static_cast<int>(bands.size()))
-        return false;
+    if (!valueTreeState || bandIndex < 0 || bandIndex >= static_cast<int>(bands.size()))
+        return true;  // Default enabled when no state available
     
     juce::String paramID = "eq_enable_band" + juce::String(bandIndex);
-    auto* smoothedValue = parameterManager->getSmoothedValue(paramID);
-    return smoothedValue ? (smoothedValue->getCurrentValue() > 0.5f) : true;  // Default enabled
+    if (auto* param = dynamic_cast<juce::AudioParameterBool*>(valueTreeState->getParameter(paramID)))
+    {
+        return param->get();
+    }
+    return true;  // Default enabled
 }
 
 bool MultiBandEQ::isBandSoloed(int bandIndex) const
 {
-    if (!parameterManager || bandIndex < 0 || bandIndex >= static_cast<int>(bands.size()))
-        return false;
+    if (!valueTreeState || bandIndex < 0 || bandIndex >= static_cast<int>(bands.size()))
+        return false;  // Default not soloed when no state available
     
     juce::String paramID = "eq_solo_band" + juce::String(bandIndex);
-    auto* smoothedValue = parameterManager->getSmoothedValue(paramID);
-    return smoothedValue ? (smoothedValue->getCurrentValue() > 0.5f) : false;  // Default not soloed
+    if (auto* param = dynamic_cast<juce::AudioParameterBool*>(valueTreeState->getParameter(paramID)))
+    {
+        return param->get();
+    }
+    return false;  // Default not soloed
 }
 
 } // namespace DynamicEQ

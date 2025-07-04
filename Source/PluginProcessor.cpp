@@ -20,25 +20,27 @@ VaclisDynamicEQAudioProcessor::VaclisDynamicEQAudioProcessor()
     parameterManager.addParameter("input_gain", parameters);
     parameterManager.addParameter("output_gain", parameters);
     
-    // 4-band EQ parameters
-    for (int band = 0; band < 4; ++band)
-    {
+    // Add smoothable parameters to ParameterManager in correct order
+    // First add all freq parameters, then all gain, then all q, then all type
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
         parameterManager.addParameter("eq_freq_band" + juce::String(band), parameters);
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band) 
         parameterManager.addParameter("eq_gain_band" + juce::String(band), parameters);
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
         parameterManager.addParameter("eq_q_band" + juce::String(band), parameters);
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
         parameterManager.addParameter("eq_type_band" + juce::String(band), parameters);
-        parameterManager.addParameter("eq_enable_band" + juce::String(band), parameters);
-        parameterManager.addParameter("eq_solo_band" + juce::String(band), parameters);
-    }
+    // Note: eq_enable and eq_solo are boolean parameters handled directly by ButtonAttachment
     
     // Setup modular DSP components
     inputGain.setup("input_gain", &parameterManager);
     outputGain.setup("output_gain", &parameterManager);
     
-    // Setup 4-band EQ system
-    multiBandEQ.setNumBands(4);
+    // Setup multi-band EQ system
+    multiBandEQ.setNumBands(DynamicEQ::CURRENT_BANDS);
     multiBandEQ.setParameterManager(&parameterManager);
-    for (int band = 0; band < 4; ++band)
+    multiBandEQ.setValueTreeState(&parameters);
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
     {
         if (auto* eqBand = multiBandEQ.getBand(band))
         {
@@ -50,6 +52,8 @@ VaclisDynamicEQAudioProcessor::VaclisDynamicEQAudioProcessor()
             eqBand->setBandIndex(band);
         }
     }
+    
+    // Parameter system initialized successfully
 }
 
 VaclisDynamicEQAudioProcessor::~VaclisDynamicEQAudioProcessor()
@@ -148,11 +152,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout VaclisDynamicEQAudioProcesso
     addGainParameter(layout, "input_gain", "Input Gain", 0.0f);
     addGainParameter(layout, "output_gain", "Output Gain", 0.0f);
     
-    // 4-band EQ parameters with different default frequencies for each band
-    const float defaultFreqs[4] = {100.0f, 500.0f, 2000.0f, 8000.0f};  // LOW, LOW-MID, HIGH-MID, HIGH
-    const juce::String bandNames[4] = {"LOW", "LOW-MID", "HIGH-MID", "HIGH"};
+    // Multi-band EQ parameters with different default frequencies for each band
+    const float defaultFreqs[DynamicEQ::CURRENT_BANDS] = {100.0f, 500.0f, 2000.0f, 8000.0f};  // LOW, LOW-MID, HIGH-MID, HIGH
+    const juce::String bandNames[DynamicEQ::CURRENT_BANDS] = {"LOW", "LOW-MID", "HIGH-MID", "HIGH"};
     
-    for (int band = 0; band < 4; ++band)
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
     {
         juce::String bandSuffix = " Band " + juce::String(band);
         
