@@ -62,6 +62,11 @@ private:
                              const juce::String& parameterName,
                              float defaultValue = 1.0f);
     
+    static void addFilterTypeParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                      const juce::String& parameterID,
+                                      const juce::String& parameterName,
+                                      float defaultValue = 0.0f);
+    
     juce::AudioProcessorValueTreeState parameters;
     
     // Modular DSP components

@@ -50,17 +50,22 @@ Based on requirements, write `docs/step-X-implementation-plan.md`:
 ### 5. Only Then Implement
 Execute the approved subtasks one by one
 
-### 6. Provide instructions of how to test in DAW
-Ask user if there is any unexpected outcome. If it really happens, go back to step 4 (Create Implementation Plan) to fix the issues. Only proceed to step 7 when user confirms no bugs.
+### 6. Update Plugin Version Display
+Before testing, update the version text in `Source/PluginEditor.cpp` (around line 110-116) to show current step and implementation status. This helps user confirm they're testing the latest version.
 
-### 7. Write trace code docs "step-X-explanation.md"
+### 7. Provide instructions of how to test in DAW
+Ask user if there is any unexpected outcome. If it really happens, go back to step 4 (Create Implementation Plan) to fix the issues. Only proceed to step 8 when user confirms no bugs.
+
+### 8. Write trace code docs "step-X-explanation.md"
 Use for trace code so should explain details about each new added function purpose
 
-### 8. Update progress tracker
+### 9. Update progress tracker
 
-### 9. git add files, write commit message, and push (requires user authorization)
-commit message NO NEED to say "written by claude code"
-**Remember: Step 9 needs user authorization before proceeding**
+### 10. git add files, write commit message, and push (requires user authorization)
+commit message NO NEED to say "🤖 Generated with [Claude Code](https://claude.ai/code)                   │
+│                                                                             │
+│   Co-Authored-By: Claude <noreply@anthropic.com>""
+**Remember: Step 10 needs user authorization before proceeding**
 
 ## Example First Message
 ```

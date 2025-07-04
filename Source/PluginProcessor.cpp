@@ -22,11 +22,12 @@ VaclisDynamicEQAudioProcessor::VaclisDynamicEQAudioProcessor()
     parameterManager.addParameter("eq_freq", parameters);
     parameterManager.addParameter("eq_gain", parameters);
     parameterManager.addParameter("eq_q", parameters);
+    parameterManager.addParameter("eq_type", parameters);
     
     // Setup modular DSP components
     inputGain.setup("input_gain", &parameterManager);
     outputGain.setup("output_gain", &parameterManager);
-    eqBand.setup("eq_freq", "eq_gain", "eq_q", &parameterManager);
+    eqBand.setup("eq_freq", "eq_gain", "eq_q", "eq_type", &parameterManager);
 }
 
 VaclisDynamicEQAudioProcessor::~VaclisDynamicEQAudioProcessor()
@@ -102,6 +103,21 @@ void VaclisDynamicEQAudioProcessor::addQParameter(juce::AudioProcessorValueTreeS
     ));
 }
 
+void VaclisDynamicEQAudioProcessor::addFilterTypeParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                                          const juce::String& parameterID,
+                                                          const juce::String& parameterName,
+                                                          float defaultValue)
+{
+    juce::StringArray filterTypeNames = {"Bell", "High Shelf", "Low Shelf", "High Pass", "Low Pass"};
+    
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        parameterID,
+        parameterName,
+        filterTypeNames,
+        static_cast<int>(defaultValue)
+    ));
+}
+
 juce::AudioProcessorValueTreeState::ParameterLayout VaclisDynamicEQAudioProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
@@ -110,10 +126,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout VaclisDynamicEQAudioProcesso
     addGainParameter(layout, "input_gain", "Input Gain", 0.0f);
     addGainParameter(layout, "output_gain", "Output Gain", 0.0f);
     
-    // Single EQ band parameters (Step 3)
+    // Single EQ band parameters (Step 3 & 4)
     addFrequencyParameter(layout, "eq_freq", "EQ Frequency", 1000.0f);
     addGainParameter(layout, "eq_gain", "EQ Gain", 0.0f);
     addQParameter(layout, "eq_q", "EQ Q", 1.0f);
+    addFilterTypeParameter(layout, "eq_type", "EQ Type", 0.0f);  // Default to Bell
 
     return layout;
 }

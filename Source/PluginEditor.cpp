@@ -90,10 +90,17 @@ VaclisDynamicEQAudioProcessorEditor::VaclisDynamicEQAudioProcessorEditor (Vaclis
     
     eqQAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.getValueTreeState(), "eq_q", eqQSlider);
+    
+    // Setup Filter Type Selection
+    setupFilterTypeButtons();
+    
+    // Listen to parameter changes
+    audioProcessor.getValueTreeState().addParameterListener("eq_type", this);
 }
 
 VaclisDynamicEQAudioProcessorEditor::~VaclisDynamicEQAudioProcessorEditor()
 {
+    audioProcessor.getValueTreeState().removeParameterListener("eq_type", this);
 }
 
 void VaclisDynamicEQAudioProcessorEditor::paint (juce::Graphics& g)
@@ -107,11 +114,11 @@ void VaclisDynamicEQAudioProcessorEditor::paint (juce::Graphics& g)
     // Draw the plugin name and version
     g.setColour (juce::Colours::white);
     g.setFont (20.0f);
-    g.drawFittedText ("Dynamic EQ - Step 3.1 Complete", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
+    g.drawFittedText ("Dynamic EQ - Step 4.8 Refactored Architecture", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
     
     g.setFont (12.0f);
     g.setColour (juce::Colours::lightgrey);
-    g.drawFittedText ("Single Band EQ with Professional Filters with refactor", 
+    g.drawFittedText ("Clean, Maintainable, Expandable", 
                       getLocalBounds().removeFromTop(120), 
                       juce::Justification::centred, 1);
 }
@@ -122,6 +129,32 @@ void VaclisDynamicEQAudioProcessorEditor::resized()
     
     // Reserve space for title
     bounds.removeFromTop(50);
+    
+    // Position Filter Type buttons at the top with more space
+    auto filterTypeArea = bounds.removeFromTop(100).reduced(20);  // Much more space to prevent overlap
+    filterTypeLabel.setBounds(filterTypeArea.removeFromTop(35)); // More space for label
+    
+    // Arrange filter type buttons horizontally - expandable layout
+    const int buttonWidth = 65;
+    const int buttonHeight = 35;  // Taller buttons
+    const int buttonSpacing = 12;  // More spacing
+    int numButtons = static_cast<int>(filterTypeButtons.size());
+    int totalButtonWidth = numButtons * buttonWidth + (numButtons - 1) * buttonSpacing;
+    
+    auto buttonArea = filterTypeArea.withWidth(totalButtonWidth)
+                                   .withHeight(buttonHeight)
+                                   .withCentre(filterTypeArea.getCentre());
+    
+    // Position all buttons dynamically
+    for (int i = 0; i < numButtons; ++i)
+    {
+        if (filterTypeButtons[i].button)
+        {
+            filterTypeButtons[i].button->setBounds(buttonArea.removeFromLeft(buttonWidth));
+            if (i < numButtons - 1)  // Don't add spacing after last button
+                buttonArea.removeFromLeft(buttonSpacing);
+        }
+    }
     
     // Create area for controls with padding
     auto controlsArea = bounds.reduced(20);
@@ -176,4 +209,123 @@ void VaclisDynamicEQAudioProcessorEditor::resized()
     auto outputArea = slidersArea.removeFromLeft(sliderWidth);
     outputGainLabel.setBounds(outputArea.removeFromTop(labelHeight));
     outputGainSlider.setBounds(outputArea.removeFromTop(sliderHeight));
+}
+
+void VaclisDynamicEQAudioProcessorEditor::setupFilterTypeButtons()
+{
+    // Setup Filter Type Label
+    filterTypeLabel.setText("Filter Type", juce::dontSendNotification);
+    filterTypeLabel.setJustificationType(juce::Justification::centred);
+    filterTypeLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    addAndMakeVisible(filterTypeLabel);
+    
+    // Clear existing buttons
+    filterTypeButtons.clear();
+    
+    // Create all filter type buttons - expandable design
+    createFilterTypeButton(0, "BELL", juce::Colours::blue);
+    createFilterTypeButton(1, "H-SHF", juce::Colours::green);
+    createFilterTypeButton(2, "L-SHF", juce::Colours::orange);
+    createFilterTypeButton(3, "H-PASS", juce::Colours::red);
+    createFilterTypeButton(4, "L-PASS", juce::Colours::violet);
+    
+    // Set initial button state based on current parameter value
+    auto* param = audioProcessor.getValueTreeState().getRawParameterValue("eq_type");
+    int currentFilterType = param ? static_cast<int>(*param) : 0;
+    updateFilterTypeButtonStates(0, currentFilterType);  // Band 0 for single-band mode
+}
+
+void VaclisDynamicEQAudioProcessorEditor::createFilterTypeButton(int index, const juce::String& text, juce::Colour colour)
+{
+    FilterTypeButton filterButton;
+    filterButton.button = std::make_unique<juce::TextButton>();
+    filterButton.text = text;
+    filterButton.selectedColour = colour;
+    filterButton.filterTypeIndex = index;
+    
+    // Configure button - no toggle states at all
+    filterButton.button->setButtonText(text);
+    filterButton.button->setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+    filterButton.button->setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    
+    // Use lambda with proper capture for multi-band expansion
+    filterButton.button->onClick = [this, index]() 
+    { 
+        filterTypeButtonClicked(0, index);  // Band 0 for single-band mode
+    };
+    
+    addAndMakeVisible(*filterButton.button);
+    filterTypeButtons.push_back(std::move(filterButton));
+}
+
+void VaclisDynamicEQAudioProcessorEditor::filterTypeButtonClicked(int bandIndex, int filterType)
+{
+    DBG("Button clicked: bandIndex=" << bandIndex << ", filterType=" << filterType);
+    
+    // FIRST: Update visual states immediately to avoid listener interference
+    updateFilterTypeButtonStates(bandIndex, filterType);
+    
+    // THEN: Update the parameter value (for single-band mode, always band 0)
+    if (bandIndex == 0)  // Single-band mode
+    {
+        // Use direct APVTS assignment for choice parameter
+        if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.getValueTreeState().getParameter("eq_type")))
+        {
+            int oldValue = choiceParam->getIndex();
+            *choiceParam = filterType;  // Direct assignment of index
+            int newValue = choiceParam->getIndex();
+            DBG("Choice parameter change: " << oldValue << " -> " << newValue);
+        }
+    }
+}
+
+void VaclisDynamicEQAudioProcessorEditor::parameterChanged(const juce::String& parameterID, float newValue)
+{
+    if (parameterID == "eq_type")
+    {
+        DBG("Parameter listener triggered: " << parameterID << " = " << newValue);
+        // Update button states when parameter changes from automation, preset load, etc.
+        int filterType = static_cast<int>(newValue + 0.5f); // Direct conversion - no normalization needed
+        juce::MessageManager::callAsync([this, filterType]()
+        {
+            updateFilterTypeButtonStates(0, filterType);  // Band 0 for single-band mode
+        });
+    }
+}
+
+void VaclisDynamicEQAudioProcessorEditor::updateFilterTypeButtonStates(int bandIndex, int filterType)
+{
+    DBG("updateFilterTypeButtonStates: bandIndex=" << bandIndex << ", filterType=" << filterType);
+    
+    // Expandable for multi-band: For now, only handle band 0 (single-band mode)
+    if (bandIndex != 0) return;  // Only handle single band for now
+    
+    // Debug: ensure filterType is valid
+    if (filterType < 0 || filterType >= static_cast<int>(filterTypeButtons.size()))
+    {
+        DBG("Invalid filterType: " << filterType);
+        return;
+    }
+    
+    // Reset all buttons to transparent background with immediate effect
+    for (int i = 0; i < static_cast<int>(filterTypeButtons.size()); ++i)
+    {
+        if (filterTypeButtons[i].button)
+        {
+            filterTypeButtons[i].button->setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+            filterTypeButtons[i].button->repaint();
+            DBG("Reset button " << i << " to transparent");
+        }
+    }
+    
+    // Set the selected button's background color with immediate effect
+    if (filterTypeButtons[filterType].button)
+    {
+        filterTypeButtons[filterType].button->setColour(
+            juce::TextButton::buttonColourId, 
+            filterTypeButtons[filterType].selectedColour
+        );
+        filterTypeButtons[filterType].button->repaint();
+        DBG("Set button " << filterType << " to selected color");
+    }
 }
