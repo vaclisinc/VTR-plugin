@@ -205,9 +205,15 @@ public:
     void prepare(double sampleRate, int samplesPerBlock);
     void processBuffer(juce::AudioBuffer<float>& buffer);
     
+    // Band control
+    void setParameterManager(ParameterManager* manager) { parameterManager = manager; }
+    bool isBandEnabled(int bandIndex) const;
+    bool isBandSoloed(int bandIndex) const;
+    
 private:
     std::vector<std::unique_ptr<EQBand>> bands;
     double currentSampleRate = 44100.0;
+    ParameterManager* parameterManager = nullptr;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MultiBandEQ)
 };

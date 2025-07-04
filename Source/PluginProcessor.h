@@ -73,7 +73,7 @@ private:
     DynamicEQ::ParameterManager parameterManager;
     DynamicEQ::GainProcessor inputGain;
     DynamicEQ::GainProcessor outputGain;
-    DynamicEQ::EQBand eqBand;
+    DynamicEQ::MultiBandEQ multiBandEQ;
     
     // Processing helper methods
     void updateParameterSmoothers();

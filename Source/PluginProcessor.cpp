@@ -19,15 +19,37 @@ VaclisDynamicEQAudioProcessor::VaclisDynamicEQAudioProcessor()
     // Setup scalable parameter management
     parameterManager.addParameter("input_gain", parameters);
     parameterManager.addParameter("output_gain", parameters);
-    parameterManager.addParameter("eq_freq", parameters);
-    parameterManager.addParameter("eq_gain", parameters);
-    parameterManager.addParameter("eq_q", parameters);
-    parameterManager.addParameter("eq_type", parameters);
+    
+    // 4-band EQ parameters
+    for (int band = 0; band < 4; ++band)
+    {
+        parameterManager.addParameter("eq_freq_band" + juce::String(band), parameters);
+        parameterManager.addParameter("eq_gain_band" + juce::String(band), parameters);
+        parameterManager.addParameter("eq_q_band" + juce::String(band), parameters);
+        parameterManager.addParameter("eq_type_band" + juce::String(band), parameters);
+        parameterManager.addParameter("eq_enable_band" + juce::String(band), parameters);
+        parameterManager.addParameter("eq_solo_band" + juce::String(band), parameters);
+    }
     
     // Setup modular DSP components
     inputGain.setup("input_gain", &parameterManager);
     outputGain.setup("output_gain", &parameterManager);
-    eqBand.setup("eq_freq", "eq_gain", "eq_q", "eq_type", &parameterManager);
+    
+    // Setup 4-band EQ system
+    multiBandEQ.setNumBands(4);
+    multiBandEQ.setParameterManager(&parameterManager);
+    for (int band = 0; band < 4; ++band)
+    {
+        if (auto* eqBand = multiBandEQ.getBand(band))
+        {
+            eqBand->setup("eq_freq_band" + juce::String(band), 
+                         "eq_gain_band" + juce::String(band), 
+                         "eq_q_band" + juce::String(band), 
+                         "eq_type_band" + juce::String(band), 
+                         &parameterManager);
+            eqBand->setBandIndex(band);
+        }
+    }
 }
 
 VaclisDynamicEQAudioProcessor::~VaclisDynamicEQAudioProcessor()
@@ -122,15 +144,42 @@ juce::AudioProcessorValueTreeState::ParameterLayout VaclisDynamicEQAudioProcesso
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
-    // Use reusable helper for all gain parameters
+    // Global parameters
     addGainParameter(layout, "input_gain", "Input Gain", 0.0f);
     addGainParameter(layout, "output_gain", "Output Gain", 0.0f);
     
-    // Single EQ band parameters (Step 3 & 4)
-    addFrequencyParameter(layout, "eq_freq", "EQ Frequency", 1000.0f);
-    addGainParameter(layout, "eq_gain", "EQ Gain", 0.0f);
-    addQParameter(layout, "eq_q", "EQ Q", 1.0f);
-    addFilterTypeParameter(layout, "eq_type", "EQ Type", 0.0f);  // Default to Bell
+    // 4-band EQ parameters with different default frequencies for each band
+    const float defaultFreqs[4] = {100.0f, 500.0f, 2000.0f, 8000.0f};  // LOW, LOW-MID, HIGH-MID, HIGH
+    const juce::String bandNames[4] = {"LOW", "LOW-MID", "HIGH-MID", "HIGH"};
+    
+    for (int band = 0; band < 4; ++band)
+    {
+        juce::String bandSuffix = " Band " + juce::String(band);
+        
+        // EQ parameters for each band
+        addFrequencyParameter(layout, "eq_freq_band" + juce::String(band), 
+                             "EQ Frequency " + bandNames[band], defaultFreqs[band]);
+        addGainParameter(layout, "eq_gain_band" + juce::String(band), 
+                        "EQ Gain " + bandNames[band], 0.0f);
+        addQParameter(layout, "eq_q_band" + juce::String(band), 
+                     "EQ Q " + bandNames[band], 1.0f);
+        addFilterTypeParameter(layout, "eq_type_band" + juce::String(band), 
+                              "EQ Type " + bandNames[band], 0.0f);  // Default to Bell
+        
+        // Enable/Disable parameter
+        layout.add(std::make_unique<juce::AudioParameterBool>(
+            "eq_enable_band" + juce::String(band),
+            "Enable " + bandNames[band],
+            true  // Default enabled
+        ));
+        
+        // Solo parameter
+        layout.add(std::make_unique<juce::AudioParameterBool>(
+            "eq_solo_band" + juce::String(band),
+            "Solo " + bandNames[band],
+            false  // Default not soloed
+        ));
+    }
 
     return layout;
 }
@@ -204,7 +253,7 @@ void VaclisDynamicEQAudioProcessor::prepareToPlay (double sampleRate, int sample
     parameterManager.prepare(sampleRate, 30.0);  // 30ms smoothing
     
     // Prepare modular DSP components
-    eqBand.prepare(sampleRate, samplesPerBlock);
+    multiBandEQ.prepare(sampleRate, samplesPerBlock);
 }
 
 void VaclisDynamicEQAudioProcessor::releaseResources()
@@ -285,9 +334,8 @@ void VaclisDynamicEQAudioProcessor::processInputGain(juce::AudioBuffer<float>& b
 
 void VaclisDynamicEQAudioProcessor::processEQ(juce::AudioBuffer<float>& buffer)
 {
-    // Clean single EQ band processing
-    eqBand.updateParameters();
-    eqBand.processBuffer(buffer);
+    // Multi-band EQ processing with enable/disable and solo support
+    multiBandEQ.processBuffer(buffer);
 }
 
 void VaclisDynamicEQAudioProcessor::processOutputGain(juce::AudioBuffer<float>& buffer)

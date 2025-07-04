@@ -223,12 +223,67 @@ void MultiBandEQ::prepare(double sampleRate, int samplesPerBlock)
 
 void MultiBandEQ::processBuffer(juce::AudioBuffer<float>& buffer)
 {
-    // Process through all enabled bands
+    // Update all band parameters first
     for (auto& band : bands)
     {
         if (band)
-            band->processBuffer(buffer);
+            band->updateParameters();
     }
+    
+    // Check if any band is soloed
+    bool anyBandSoloed = false;
+    for (int i = 0; i < static_cast<int>(bands.size()); ++i)
+    {
+        if (bands[i] && isBandSoloed(i))
+        {
+            anyBandSoloed = true;
+            break;
+        }
+    }
+    
+    // Process through bands based on enable/solo state
+    if (anyBandSoloed)
+    {
+        // Only process soloed bands
+        for (int i = 0; i < static_cast<int>(bands.size()); ++i)
+        {
+            if (bands[i] && isBandSoloed(i))
+            {
+                bands[i]->processBuffer(buffer);
+            }
+        }
+    }
+    else
+    {
+        // Process all enabled bands
+        for (int i = 0; i < static_cast<int>(bands.size()); ++i)
+        {
+            if (bands[i] && isBandEnabled(i))
+            {
+                bands[i]->processBuffer(buffer);
+            }
+        }
+    }
+}
+
+bool MultiBandEQ::isBandEnabled(int bandIndex) const
+{
+    if (!parameterManager || bandIndex < 0 || bandIndex >= static_cast<int>(bands.size()))
+        return false;
+    
+    juce::String paramID = "eq_enable_band" + juce::String(bandIndex);
+    auto* smoothedValue = parameterManager->getSmoothedValue(paramID);
+    return smoothedValue ? (smoothedValue->getCurrentValue() > 0.5f) : true;  // Default enabled
+}
+
+bool MultiBandEQ::isBandSoloed(int bandIndex) const
+{
+    if (!parameterManager || bandIndex < 0 || bandIndex >= static_cast<int>(bands.size()))
+        return false;
+    
+    juce::String paramID = "eq_solo_band" + juce::String(bandIndex);
+    auto* smoothedValue = parameterManager->getSmoothedValue(paramID);
+    return smoothedValue ? (smoothedValue->getCurrentValue() > 0.5f) : false;  // Default not soloed
 }
 
 } // namespace DynamicEQ

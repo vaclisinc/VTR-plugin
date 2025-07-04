@@ -82,25 +82,26 @@ VaclisDynamicEQAudioProcessorEditor::VaclisDynamicEQAudioProcessorEditor (Vaclis
     outputGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.getValueTreeState(), "output_gain", outputGainSlider);
     
+    // Temporarily connect to Band 0 parameters until full 4-band UI is implemented
     eqFreqAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.getValueTreeState(), "eq_freq", eqFreqSlider);
+        audioProcessor.getValueTreeState(), "eq_freq_band0", eqFreqSlider);
     
     eqGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.getValueTreeState(), "eq_gain", eqGainSlider);
+        audioProcessor.getValueTreeState(), "eq_gain_band0", eqGainSlider);
     
     eqQAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.getValueTreeState(), "eq_q", eqQSlider);
+        audioProcessor.getValueTreeState(), "eq_q_band0", eqQSlider);
     
     // Setup Filter Type Selection
     setupFilterTypeButtons();
     
-    // Listen to parameter changes
-    audioProcessor.getValueTreeState().addParameterListener("eq_type", this);
+    // Listen to parameter changes (temporarily Band 0)
+    audioProcessor.getValueTreeState().addParameterListener("eq_type_band0", this);
 }
 
 VaclisDynamicEQAudioProcessorEditor::~VaclisDynamicEQAudioProcessorEditor()
 {
-    audioProcessor.getValueTreeState().removeParameterListener("eq_type", this);
+    audioProcessor.getValueTreeState().removeParameterListener("eq_type_band0", this);
 }
 
 void VaclisDynamicEQAudioProcessorEditor::paint (juce::Graphics& g)
@@ -114,7 +115,7 @@ void VaclisDynamicEQAudioProcessorEditor::paint (juce::Graphics& g)
     // Draw the plugin name and version
     g.setColour (juce::Colours::white);
     g.setFont (20.0f);
-    g.drawFittedText ("Dynamic EQ - Step 4.9 Update JUCE framework version to newest 8.0.8", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
+    g.drawFittedText ("Dynamic EQ - Step 5.1 Multi-Band System", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
     
     g.setFont (12.0f);
     g.setColour (juce::Colours::lightgrey);
@@ -268,8 +269,8 @@ void VaclisDynamicEQAudioProcessorEditor::filterTypeButtonClicked(int bandIndex,
     // THEN: Update the parameter value (for single-band mode, always band 0)
     if (bandIndex == 0)  // Single-band mode
     {
-        // Use direct APVTS assignment for choice parameter
-        if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.getValueTreeState().getParameter("eq_type")))
+        // Use direct APVTS assignment for choice parameter (temporarily Band 0)
+        if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.getValueTreeState().getParameter("eq_type_band0")))
         {
             int oldValue = choiceParam->getIndex();
             *choiceParam = filterType;  // Direct assignment of index
@@ -281,7 +282,7 @@ void VaclisDynamicEQAudioProcessorEditor::filterTypeButtonClicked(int bandIndex,
 
 void VaclisDynamicEQAudioProcessorEditor::parameterChanged(const juce::String& parameterID, float newValue)
 {
-    if (parameterID == "eq_type")
+    if (parameterID == "eq_type_band0")
     {
         DBG("Parameter listener triggered: " << parameterID << " = " << newValue);
         // Update button states when parameter changes from automation, preset load, etc.
