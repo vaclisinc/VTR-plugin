@@ -10,7 +10,7 @@ include(FetchContent)
 FetchContent_Declare(
   JUCE
   GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-  GIT_TAG        7.0.9
+  GIT_TAG        8.0.8
   GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(JUCE)
@@ -58,8 +58,8 @@ target_compile_definitions(vaclis-DynamicEQ
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_DISPLAY_SPLASH_SCREEN=0
         JUCE_REPORT_APP_USAGE=0
-        JUCE_ALSA=1
-        JUCE_JACK=1
+        JUCE_ALSA=0
+        JUCE_JACK=0
         JUCE_COREAUDIO=1
         JUCE_WASAPI=1
         JUCE_DIRECTSOUND=1

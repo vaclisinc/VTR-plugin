@@ -106,7 +106,7 @@ Load the plugin in your DAW (tested with REAPER):
 
 ## Dependencies
 
-- **JUCE Framework 7.0.9**: Core audio plugin framework 
+- **JUCE Framework 8.0.8**: Core audio plugin framework 
 - **chowdsp_utils**: Professional DSP library (integrated as submodule)
 
 ## Contributing
