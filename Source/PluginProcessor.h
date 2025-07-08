@@ -67,6 +67,47 @@ private:
                                       const juce::String& parameterName,
                                       float defaultValue = 0.0f);
     
+    // Dynamics parameter creation helpers
+    static void addThresholdParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                     const juce::String& parameterID,
+                                     const juce::String& parameterName,
+                                     float defaultValue = -20.0f);
+    
+    static void addRatioParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                 const juce::String& parameterID,
+                                 const juce::String& parameterName,
+                                 float defaultValue = 4.0f);
+    
+    static void addAttackParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                  const juce::String& parameterID,
+                                  const juce::String& parameterName,
+                                  float defaultValue = 1.0f);
+    
+    static void addReleaseParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                   const juce::String& parameterID,
+                                   const juce::String& parameterName,
+                                   float defaultValue = 100.0f);
+    
+    static void addKneeParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                const juce::String& parameterID,
+                                const juce::String& parameterName,
+                                float defaultValue = 2.0f);
+    
+    static void addDetectionTypeParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                         const juce::String& parameterID,
+                                         const juce::String& parameterName,
+                                         float defaultValue = 0.0f);
+    
+    static void addDynamicsModeParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                        const juce::String& parameterID,
+                                        const juce::String& parameterName,
+                                        float defaultValue = 0.0f);
+    
+    static void addDynamicsBypassParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                          const juce::String& parameterID,
+                                          const juce::String& parameterName,
+                                          bool defaultValue = false);
+    
     juce::AudioProcessorValueTreeState parameters;
     
     // Modular DSP components

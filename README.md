@@ -14,7 +14,7 @@ A professional multi-band dynamic EQ plugin built with JUCE and modular architec
 1. **Clone and initialize submodules:**
 ```bash
 git clone https://github.com/vaclisPG/vaclis-DynamicEQ.git
-cd vaclis-DynamicEQ.git
+cd vaclis-DynamicEQ
 git submodule update --init --recursive
 ```
 

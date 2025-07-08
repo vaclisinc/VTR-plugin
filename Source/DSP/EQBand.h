@@ -5,6 +5,7 @@
 #include <chowdsp_filters/chowdsp_filters.h>
 #include <chowdsp_eq/chowdsp_eq.h>
 #include "../Parameters/ParameterManager.h"
+#include <chowdsp_compressor/chowdsp_compressor.h>
 
 namespace DynamicEQ {
 
@@ -22,6 +23,27 @@ enum class FilterType
     LowShelf,
     HighPass,
     LowPass
+};
+
+/**
+ * Dynamics modes for frequency-specific dynamics processing
+ */
+enum class DynamicsMode
+{
+    Compressive = 0,    // Reduce gain when signal exceeds threshold
+    Expansive,          // Increase gain when signal exceeds threshold  
+    DeEsser,           // Specialized for harsh frequency reduction
+    Gate               // Cut gain below threshold (downward expansion)
+};
+
+/**
+ * Detection types for envelope following
+ */
+enum class DetectionType
+{
+    Peak = 0,
+    RMS,
+    Blend
 };
 
 /**
@@ -135,6 +157,10 @@ public:
     // Setup and configuration
     void setup(const juce::String& freqID, const juce::String& gainID, 
                const juce::String& qID, const juce::String& typeID, ParameterManager* paramManager);
+    void setupDynamics(const juce::String& thresholdID, const juce::String& ratioID,
+                       const juce::String& attackID, const juce::String& releaseID,
+                       const juce::String& kneeID, const juce::String& detectionID,
+                       const juce::String& modeID, const juce::String& bypassID);
     void prepare(double sampleRate, int samplesPerBlock);
     
     // Real-time processing
@@ -146,6 +172,17 @@ public:
     float getCurrentGain() const;
     float getCurrentQ() const;
     FilterType getCurrentFilterType() const;
+    
+    // Dynamics parameter access
+    float getCurrentThreshold() const;
+    float getCurrentRatio() const;
+    float getCurrentAttack() const;
+    float getCurrentRelease() const;
+    float getCurrentKnee() const;
+    DetectionType getCurrentDetectionType() const;
+    DynamicsMode getCurrentDynamicsMode() const;
+    bool isDynamicsBypassed() const;
+    float getCurrentGainReduction() const;
     
     // Multi-band expansion support
     void setBandIndex(int bandIndex) { currentBandIndex = bandIndex; }
@@ -170,10 +207,37 @@ private:
         bool isValid() const { return frequency >= 0 && gain >= 0 && q >= 0 && type >= 0; }
     } paramIndices;
     
+    // Dynamics parameter indices
+    struct DynamicsParameterIndices
+    {
+        int threshold = -1;
+        int ratio = -1;
+        int attack = -1;
+        int release = -1;
+        int knee = -1;
+        int detection = -1;
+        int mode = -1;
+        int bypass = -1;
+        bool isValid() const { return threshold >= 0 && ratio >= 0 && attack >= 0 && release >= 0; }
+    } dynamicsParamIndices;
+    
     // Parameter management
     juce::String freqParamID, gainParamID, qParamID, typeParamID;
+    juce::String thresholdParamID, ratioParamID, attackParamID, releaseParamID;
+    juce::String kneeParamID, detectionParamID, modeParamID, bypassParamID;
     ParameterManager* manager = nullptr;
     int currentBandIndex = 0;  // For multi-band support
+    
+    // chowdsp Dynamics processing components
+    using CompressorType = chowdsp::compressor::MonoCompressor<float, 
+        chowdsp::compressor::CompressorLevelDetector<float>,
+        chowdsp::compressor::GainComputer<float>>;
+    CompressorType compressor;
+    bool dynamicsEnabled = false;
+    
+    // Temporary buffers for dynamics processing
+    juce::AudioBuffer<float> compressorBuffer;
+    juce::AudioBuffer<float> keyInputBuffer;
     
     // Current values for external access
     float lastFrequency = 1000.0f;
@@ -181,9 +245,23 @@ private:
     float lastQ = 1.0f;
     FilterType lastFilterType = FilterType::Bell;
     
+    // Dynamics values for external access
+    float lastThreshold = -20.0f;
+    float lastRatio = 4.0f;
+    float lastAttack = 1.0f;
+    float lastRelease = 100.0f;
+    float lastKnee = 2.0f;
+    DetectionType lastDetectionType = DetectionType::Peak;
+    DynamicsMode lastDynamicsMode = DynamicsMode::Compressive;
+    bool lastDynamicsBypass = false;
+    float lastGainReduction = 0.0f;
+    
     // Private helper methods
     void cacheParameterIndices();
+    void cacheDynamicsParameterIndices();
     void updateFilterParameters(float frequency, float gainDb, float q, FilterType filterType);
+    void updateDynamicsParameters();
+    void processDynamicsBlock(juce::AudioBuffer<float>& buffer);
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EQBand)
 };

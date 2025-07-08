@@ -32,6 +32,24 @@ VaclisDynamicEQAudioProcessor::VaclisDynamicEQAudioProcessor()
         parameterManager.addParameter("eq_type_band" + juce::String(band), parameters);
     // Note: eq_enable and eq_solo are boolean parameters handled directly by ButtonAttachment
     
+    // Add dynamics parameters to ParameterManager
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
+        parameterManager.addParameter("dyn_threshold_band" + juce::String(band), parameters);
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
+        parameterManager.addParameter("dyn_ratio_band" + juce::String(band), parameters);
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
+        parameterManager.addParameter("dyn_attack_band" + juce::String(band), parameters);
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
+        parameterManager.addParameter("dyn_release_band" + juce::String(band), parameters);
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
+        parameterManager.addParameter("dyn_knee_band" + juce::String(band), parameters);
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
+        parameterManager.addParameter("dyn_detection_band" + juce::String(band), parameters);
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
+        parameterManager.addParameter("dyn_mode_band" + juce::String(band), parameters);
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
+        parameterManager.addParameter("dyn_bypass_band" + juce::String(band), parameters);
+    
     // Setup modular DSP components
     inputGain.setup("input_gain", &parameterManager);
     outputGain.setup("output_gain", &parameterManager);
@@ -49,6 +67,14 @@ VaclisDynamicEQAudioProcessor::VaclisDynamicEQAudioProcessor()
                          "eq_q_band" + juce::String(band), 
                          "eq_type_band" + juce::String(band), 
                          &parameterManager);
+            eqBand->setupDynamics("dyn_threshold_band" + juce::String(band),
+                                 "dyn_ratio_band" + juce::String(band),
+                                 "dyn_attack_band" + juce::String(band),
+                                 "dyn_release_band" + juce::String(band),
+                                 "dyn_knee_band" + juce::String(band),
+                                 "dyn_detection_band" + juce::String(band),
+                                 "dyn_mode_band" + juce::String(band),
+                                 "dyn_bypass_band" + juce::String(band));
             eqBand->setBandIndex(band);
         }
     }
@@ -144,6 +170,156 @@ void VaclisDynamicEQAudioProcessor::addFilterTypeParameter(juce::AudioProcessorV
     ));
 }
 
+void VaclisDynamicEQAudioProcessor::addThresholdParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                                         const juce::String& parameterID,
+                                                         const juce::String& parameterName,
+                                                         float defaultValue)
+{
+    auto thresholdRange = juce::NormalisableRange<float>(-60.0f, 0.0f, 0.1f);
+    
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        parameterID,
+        parameterName,
+        thresholdRange,
+        defaultValue,
+        "dB",
+        juce::AudioProcessorParameter::genericParameter,
+        [](float value, int) { return juce::String(value, 1) + " dB"; },
+        [](const juce::String& text) { return text.getFloatValue(); }
+    ));
+}
+
+void VaclisDynamicEQAudioProcessor::addRatioParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                                     const juce::String& parameterID,
+                                                     const juce::String& parameterName,
+                                                     float defaultValue)
+{
+    auto ratioRange = juce::NormalisableRange<float>(1.0f, 100.0f, 0.1f);
+    ratioRange.setSkewForCentre(4.0f);  // Logarithmic scaling centered on 4:1
+    
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        parameterID,
+        parameterName,
+        ratioRange,
+        defaultValue,
+        ":1",
+        juce::AudioProcessorParameter::genericParameter,
+        [](float value, int) { 
+            if (value >= 20.0f)
+                return juce::String("∞:1");
+            else
+                return juce::String(value, 1) + ":1";
+        },
+        [](const juce::String& text) { 
+            if (text.contains("∞"))
+                return 100.0f; // Will be converted to infinity in processor
+            else
+                return text.getFloatValue();
+        }
+    ));
+}
+
+void VaclisDynamicEQAudioProcessor::addAttackParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                                      const juce::String& parameterID,
+                                                      const juce::String& parameterName,
+                                                      float defaultValue)
+{
+    auto attackRange = juce::NormalisableRange<float>(0.1f, 300.0f, 0.1f);
+    attackRange.setSkewForCentre(10.0f);  // Logarithmic scaling
+    
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        parameterID,
+        parameterName,
+        attackRange,
+        defaultValue,
+        "ms",
+        juce::AudioProcessorParameter::genericParameter,
+        [](float value, int) { return juce::String(value, 1) + " ms"; },
+        [](const juce::String& text) { return text.getFloatValue(); }
+    ));
+}
+
+void VaclisDynamicEQAudioProcessor::addReleaseParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                                       const juce::String& parameterID,
+                                                       const juce::String& parameterName,
+                                                       float defaultValue)
+{
+    auto releaseRange = juce::NormalisableRange<float>(1.0f, 3000.0f, 1.0f);
+    releaseRange.setSkewForCentre(100.0f);  // Logarithmic scaling
+    
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        parameterID,
+        parameterName,
+        releaseRange,
+        defaultValue,
+        "ms",
+        juce::AudioProcessorParameter::genericParameter,
+        [](float value, int) { return juce::String(value, 0) + " ms"; },
+        [](const juce::String& text) { return text.getFloatValue(); }
+    ));
+}
+
+void VaclisDynamicEQAudioProcessor::addKneeParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                                    const juce::String& parameterID,
+                                                    const juce::String& parameterName,
+                                                    float defaultValue)
+{
+    auto kneeRange = juce::NormalisableRange<float>(0.0f, 10.0f, 0.1f);
+    
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        parameterID,
+        parameterName,
+        kneeRange,
+        defaultValue,
+        "",
+        juce::AudioProcessorParameter::genericParameter,
+        [](float value, int) { return juce::String(value, 1); },
+        [](const juce::String& text) { return text.getFloatValue(); }
+    ));
+}
+
+void VaclisDynamicEQAudioProcessor::addDetectionTypeParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                                             const juce::String& parameterID,
+                                                             const juce::String& parameterName,
+                                                             float defaultValue)
+{
+    juce::StringArray detectionTypeNames = {"Peak", "RMS", "Blend"};
+    
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        parameterID,
+        parameterName,
+        detectionTypeNames,
+        static_cast<int>(defaultValue)
+    ));
+}
+
+void VaclisDynamicEQAudioProcessor::addDynamicsModeParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                                            const juce::String& parameterID,
+                                                            const juce::String& parameterName,
+                                                            float defaultValue)
+{
+    juce::StringArray dynamicsModeNames = {"Compressive", "Expansive", "De-esser", "Gate"};
+    
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        parameterID,
+        parameterName,
+        dynamicsModeNames,
+        static_cast<int>(defaultValue)
+    ));
+}
+
+void VaclisDynamicEQAudioProcessor::addDynamicsBypassParameter(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
+                                                              const juce::String& parameterID,
+                                                              const juce::String& parameterName,
+                                                              bool defaultValue)
+{
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        parameterID,
+        parameterName,
+        defaultValue
+    ));
+}
+
 juce::AudioProcessorValueTreeState::ParameterLayout VaclisDynamicEQAudioProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
@@ -183,6 +359,24 @@ juce::AudioProcessorValueTreeState::ParameterLayout VaclisDynamicEQAudioProcesso
             "Solo " + bandNames[band],
             false  // Default not soloed
         ));
+        
+        // Dynamics parameters for each band
+        addThresholdParameter(layout, "dyn_threshold_band" + juce::String(band),
+                             "Dynamics Threshold " + bandNames[band], -20.0f);
+        addRatioParameter(layout, "dyn_ratio_band" + juce::String(band),
+                         "Dynamics Ratio " + bandNames[band], 4.0f);
+        addAttackParameter(layout, "dyn_attack_band" + juce::String(band),
+                          "Dynamics Attack " + bandNames[band], 1.0f);
+        addReleaseParameter(layout, "dyn_release_band" + juce::String(band),
+                           "Dynamics Release " + bandNames[band], 100.0f);
+        addKneeParameter(layout, "dyn_knee_band" + juce::String(band),
+                        "Dynamics Knee " + bandNames[band], 2.0f);
+        addDetectionTypeParameter(layout, "dyn_detection_band" + juce::String(band),
+                                 "Dynamics Detection " + bandNames[band], 0.0f);
+        addDynamicsModeParameter(layout, "dyn_mode_band" + juce::String(band),
+                                "Dynamics Mode " + bandNames[band], 0.0f);
+        addDynamicsBypassParameter(layout, "dyn_bypass_band" + juce::String(band),
+                                  "Dynamics Bypass " + bandNames[band], false);
     }
 
     return layout;
