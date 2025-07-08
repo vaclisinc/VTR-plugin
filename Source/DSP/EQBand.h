@@ -166,6 +166,7 @@ public:
     // Real-time processing
     void updateParameters();
     void processBuffer(juce::AudioBuffer<float>& buffer);
+    void processBuffer(juce::AudioBuffer<float>& buffer, const juce::AudioBuffer<float>* sidechainBuffer);
     
     // Parameter access
     float getCurrentFrequency() const;
@@ -262,6 +263,7 @@ private:
     void updateFilterParameters(float frequency, float gainDb, float q, FilterType filterType);
     void updateDynamicsParameters();
     void processDynamicsBlock(juce::AudioBuffer<float>& buffer);
+    void processDynamicsBlockWithSidechain(juce::AudioBuffer<float>& buffer, const juce::AudioBuffer<float>* sidechainBuffer);
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EQBand)
 };
@@ -286,6 +288,7 @@ public:
     // Processing
     void prepare(double sampleRate, int samplesPerBlock);
     void processBuffer(juce::AudioBuffer<float>& buffer);
+    void processBuffer(juce::AudioBuffer<float>& buffer, const juce::AudioBuffer<float>* sidechainBuffer);
     
     // Band control
     void setParameterManager(ParameterManager* manager) { parameterManager = manager; }

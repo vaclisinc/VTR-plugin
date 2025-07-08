@@ -299,19 +299,13 @@ void BandControlComponent::setupDynamicsControls()
     modeLabel.setFont(juce::Font(juce::FontOptions(10.0f))); // Consistent font size
     addAndMakeVisible(modeLabel);
     
-    // Dynamics bypass button
-    dynamicsBypassButton.setButtonText("BYPASS");
-    dynamicsBypassButton.setToggleable(true);
-    dynamicsBypassButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::red);
-    dynamicsBypassButton.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-    addAndMakeVisible(dynamicsBypassButton);
+    // Bypass button removed - DYN button handles enable/disable
     
-    // Initially hide combo boxes and bypass button
+    // Initially hide combo boxes
     detectionTypeCombo.setVisible(false);
     detectionLabel.setVisible(false);
     modeCombo.setVisible(false);
     modeLabel.setVisible(false);
-    dynamicsBypassButton.setVisible(false);
     
     // Create parameter attachments
     juce::String bandSuffix = juce::String(bandIndex);
@@ -337,17 +331,7 @@ void BandControlComponent::setupDynamicsControls()
     modeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         audioProcessor.getValueTreeState(), "dyn_mode_band" + bandSuffix, modeCombo);
     
-    dynamicsBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-        audioProcessor.getValueTreeState(), "dyn_bypass_band" + bandSuffix, dynamicsBypassButton);
-    
-    // Initialize bypass button state from parameter (should be true by default)
-    juce::String bypassParamID = "dyn_bypass_band" + bandSuffix;
-    auto* bypassParam = audioProcessor.getValueTreeState().getParameter(bypassParamID);
-    if (bypassParam)
-    {
-        float bypassValue = bypassParam->getValue();
-        dynamicsBypassButton.setToggleState(bypassValue > 0.5f, juce::dontSendNotification);
-    }
+    // Bypass attachment removed - DYN button controls bypass parameter directly
 }
 
 void BandControlComponent::toggleDynamicsSection()
@@ -383,7 +367,6 @@ void BandControlComponent::toggleDynamicsSection()
     detectionLabel.setVisible(dynamicsExpanded);
     modeCombo.setVisible(dynamicsExpanded);
     modeLabel.setVisible(dynamicsExpanded);
-    dynamicsBypassButton.setVisible(dynamicsExpanded);
     
     // Trigger layout update
     resized();
@@ -398,7 +381,7 @@ void BandControlComponent::toggleDynamicsSection()
 int BandControlComponent::getRequiredHeight() const
 {
     int baseHeight = 280; // Base height for EQ controls
-    int dynamicsHeight = dynamicsExpanded ? 155 : 0; // Additional height for dynamics (increased for better text display)
+    int dynamicsHeight = dynamicsExpanded ? 185 : 0; // 2-row layout with larger knobs (75+75+spacing)
     return baseHeight + dynamicsHeight;
 }
 
@@ -478,64 +461,61 @@ void BandControlComponent::resized()
     auto dynamicsToggleArea = bounds.removeFromTop(25);
     dynamicsToggleButton.setBounds(dynamicsToggleArea);
     
-    // Dynamics controls (only layout if expanded)
+    // Dynamics controls (only layout if expanded) - 3-column, 2-row layout
     if (dynamicsExpanded)
     {
         bounds.removeFromTop(10); // spacing
         
-        // Row 1: Threshold, Ratio, Attack, Release (4 rotary sliders)
-        auto dynamicsRow1LabelArea = bounds.removeFromTop(15); // Taller for better text display
-        auto dynamicsRow1SliderArea = bounds.removeFromTop(70); // Taller for text boxes
+        // Use same column positions as Freq/Gain/Q sliders above
+        int columnWidth = controlWidth; // Same as EQ controls (60px)
+        int knobSize = 65; // Larger rotary knobs
+        int startX = (bounds.getWidth() - (columnWidth * 3)) / 2;
         
-        int dynamicsControlWidth = 50; // Wider for better text display
-        int dynamicsSpacing = (bounds.getWidth() - (dynamicsControlWidth * 4)) / 5;
+        // Column positions aligned with EQ controls
+        int col1X = startX;
+        int col2X = startX + columnWidth;
+        int col3X = startX + columnWidth * 2;
         
-        // Position first row labels and sliders
-        int currentX = dynamicsSpacing;
+        // Row 1: Threshold, Ratio, Attack
+        auto row1LabelArea = bounds.removeFromTop(12);
+        auto row1ControlArea = bounds.removeFromTop(75); // Taller for bigger knobs
         
-        thresholdLabel.setBounds(currentX, dynamicsRow1LabelArea.getY(), dynamicsControlWidth, dynamicsRow1LabelArea.getHeight());
-        thresholdSlider.setBounds(currentX, dynamicsRow1SliderArea.getY(), dynamicsControlWidth, dynamicsRow1SliderArea.getHeight());
-        currentX += dynamicsControlWidth + dynamicsSpacing;
+        // Threshold (Col 1)
+        thresholdLabel.setBounds(col1X, row1LabelArea.getY(), columnWidth, row1LabelArea.getHeight());
+        thresholdSlider.setBounds(col1X - 2, row1ControlArea.getY(), knobSize, knobSize);
         
-        ratioLabel.setBounds(currentX, dynamicsRow1LabelArea.getY(), dynamicsControlWidth, dynamicsRow1LabelArea.getHeight());
-        ratioSlider.setBounds(currentX, dynamicsRow1SliderArea.getY(), dynamicsControlWidth, dynamicsRow1SliderArea.getHeight());
-        currentX += dynamicsControlWidth + dynamicsSpacing;
+        // Ratio (Col 2)
+        ratioLabel.setBounds(col2X, row1LabelArea.getY(), columnWidth, row1LabelArea.getHeight());
+        ratioSlider.setBounds(col2X - 2, row1ControlArea.getY(), knobSize, knobSize);
         
-        attackLabel.setBounds(currentX, dynamicsRow1LabelArea.getY(), dynamicsControlWidth, dynamicsRow1LabelArea.getHeight());
-        attackSlider.setBounds(currentX, dynamicsRow1SliderArea.getY(), dynamicsControlWidth, dynamicsRow1SliderArea.getHeight());
-        currentX += dynamicsControlWidth + dynamicsSpacing;
+        // Attack (Col 3)
+        attackLabel.setBounds(col3X, row1LabelArea.getY(), columnWidth, row1LabelArea.getHeight());
+        attackSlider.setBounds(col3X - 2, row1ControlArea.getY(), knobSize, knobSize);
         
-        releaseLabel.setBounds(currentX, dynamicsRow1LabelArea.getY(), dynamicsControlWidth, dynamicsRow1LabelArea.getHeight());
-        releaseSlider.setBounds(currentX, dynamicsRow1SliderArea.getY(), dynamicsControlWidth, dynamicsRow1SliderArea.getHeight());
+        bounds.removeFromTop(10); // spacing between rows
         
-        bounds.removeFromTop(5); // spacing
+        // Row 2: Release, Detection/Mode (vertical sub-component), Knee
+        auto row2LabelArea = bounds.removeFromTop(12);
+        auto row2ControlArea = bounds.removeFromTop(75);
         
-        // Row 2: Knee, Detection, Mode
-        auto dynamicsRow2LabelArea = bounds.removeFromTop(15); // Taller for better text display
-        auto dynamicsRow2ControlArea = bounds.removeFromTop(50); // Taller for better control display
+        // Release (Col 1)
+        releaseLabel.setBounds(col1X, row2LabelArea.getY(), columnWidth, row2LabelArea.getHeight());
+        releaseSlider.setBounds(col1X - 2, row2ControlArea.getY(), knobSize, knobSize);
         
-        int row2ControlWidth = 65; // Wider for better text display
-        int row2Spacing = (bounds.getWidth() - (row2ControlWidth * 3)) / 4;
-        currentX = row2Spacing;
+        // Detection/Mode vertical sub-component (Col 2) - tightly packed
+        auto comboSubArea = juce::Rectangle<int>(col2X, row2LabelArea.getY(), columnWidth, row2LabelArea.getHeight() + row2ControlArea.getHeight());
         
-        kneeLabel.setBounds(currentX, dynamicsRow2LabelArea.getY(), row2ControlWidth, dynamicsRow2LabelArea.getHeight());
-        kneeSlider.setBounds(currentX, dynamicsRow2ControlArea.getY(), row2ControlWidth, 45);
-        currentX += row2ControlWidth + row2Spacing;
+        // Detection (upper part of sub-component)
+        detectionLabel.setBounds(col2X, row2LabelArea.getY(), columnWidth, row2LabelArea.getHeight());
+        detectionTypeCombo.setBounds(col2X + 2, row2ControlArea.getY() + 5, columnWidth - 4, 22);
         
-        detectionLabel.setBounds(currentX, dynamicsRow2LabelArea.getY(), row2ControlWidth, dynamicsRow2LabelArea.getHeight());
-        detectionTypeCombo.setBounds(currentX, dynamicsRow2ControlArea.getY(), row2ControlWidth, 22); // Taller combo box
-        currentX += row2ControlWidth + row2Spacing;
+        // Mode (lower part of sub-component, tightly below Detection)
+        modeLabel.setBounds(col2X, row2ControlArea.getY() + 30, columnWidth, 12);
+        modeCombo.setBounds(col2X + 2, row2ControlArea.getY() + 42, columnWidth - 4, 22);
         
-        modeLabel.setBounds(currentX, dynamicsRow2LabelArea.getY(), row2ControlWidth, dynamicsRow2LabelArea.getHeight());
-        modeCombo.setBounds(currentX, dynamicsRow2ControlArea.getY(), row2ControlWidth, 22); // Taller combo box
-        
-        bounds.removeFromTop(5); // spacing
-        
-        // Row 3: Bypass button
-        auto bypassArea = bounds.removeFromTop(25);
-        int bypassWidth = 80;
-        int bypassX = (bounds.getWidth() - bypassWidth) / 2;
-        dynamicsBypassButton.setBounds(bypassX, bypassArea.getY(), bypassWidth, bypassArea.getHeight());
+        // Knee (Col 3)
+        kneeLabel.setBounds(col3X, row2LabelArea.getY(), columnWidth, row2LabelArea.getHeight());
+        kneeSlider.setBounds(col3X - 2, row2ControlArea.getY(), knobSize, knobSize);
     }
 }
 
@@ -543,7 +523,7 @@ VaclisDynamicEQAudioProcessorEditor::VaclisDynamicEQAudioProcessorEditor (Vaclis
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
     // Set initial size for multi-band layout
-    setSize(1250, 385);
+    setSize(1250, 730);
     
     // Create constrainer for resize limits
     constrainer = std::make_unique<juce::ComponentBoundsConstrainer>();
@@ -587,6 +567,68 @@ VaclisDynamicEQAudioProcessorEditor::VaclisDynamicEQAudioProcessorEditor (Vaclis
     // Setup 4-band components
     setupBandComponents();
     
+    // Setup frequency response display (dedicated area)
+    frequencyResponseDisplay = std::make_unique<FrequencyResponseDisplay>(audioProcessor.getSpectrumAnalyzer());
+    frequencyResponseDisplay->setDisplayMode(FrequencyResponseDisplay::DisplayMode::Both);
+    frequencyResponseDisplay->setSpectrumVisible(true); // Start visible
+    addAndMakeVisible(*frequencyResponseDisplay);
+    
+    // Keep old spectrum display for compatibility (not visible by default)
+    spectrumDisplay = std::make_unique<SpectrumDisplay>(audioProcessor.getSpectrumAnalyzer());
+    spectrumDisplay->setDisplayMode(SpectrumDisplay::DisplayMode::Both);
+    spectrumDisplay->setAlpha(0.7f);
+    spectrumDisplay->setVisible(false); // Not used in new design
+    addAndMakeVisible(*spectrumDisplay);
+    
+    // Setup level meters
+    inputLevelMeter = std::make_unique<LevelMeter>();
+    inputLevelMeter->setOrientation(false); // Vertical
+    inputLevelMeter->setRange(-60.0f, 0.0f);
+    addAndMakeVisible(*inputLevelMeter);
+    
+    outputLevelMeter = std::make_unique<LevelMeter>();
+    outputLevelMeter->setOrientation(false); // Vertical  
+    outputLevelMeter->setRange(-60.0f, 0.0f);
+    addAndMakeVisible(*outputLevelMeter);
+    
+    // Setup spectrum mode button
+    spectrumModeButton.setButtonText("SPEC");
+    spectrumModeButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF404040));      // Dark gray when off
+    spectrumModeButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xFF00AA00));    // Bright green when on
+    spectrumModeButton.setColour(juce::TextButton::textColourOffId, juce::Colours::lightgrey);
+    spectrumModeButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    spectrumModeButton.setToggleable(true);
+    spectrumModeButton.setClickingTogglesState(true);
+    spectrumModeButton.setRadioGroupId(0); // Ensure proper toggle behavior
+    spectrumModeButton.setToggleState(true, juce::dontSendNotification); // Default on
+    spectrumModeButton.onClick = [this]() {
+        if (frequencyResponseDisplay) {
+            bool shouldShow = spectrumModeButton.getToggleState();
+            frequencyResponseDisplay->setSpectrumVisible(shouldShow);
+            frequencyResponseDisplay->repaint();
+            repaint(); // Force GUI refresh
+            DBG("Spectrum display set to: " << (shouldShow ? "visible" : "hidden"));
+        }
+    };
+    addAndMakeVisible(spectrumModeButton);
+    
+    // Setup sidechain button
+    sidechainButton.setButtonText("SC");
+    sidechainButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0x40404040));
+    sidechainButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0x80FF6600)); // Orange when active
+    sidechainButton.setColour(juce::TextButton::textColourOffId, juce::Colours::lightgrey);
+    sidechainButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    sidechainButton.setToggleable(true);
+    sidechainButton.setClickingTogglesState(true); // 讓按鈕可以切換狀態
+    addAndMakeVisible(sidechainButton);
+    
+    // Create sidechain attachment
+    sidechainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.getValueTreeState(), "sidechain_enable", sidechainButton);
+    
+    // Start timer for level meter updates (30Hz)
+    startTimer(33);
+    
     // Ensure proper initial layout
     resized();
     repaint();
@@ -628,7 +670,7 @@ void VaclisDynamicEQAudioProcessorEditor::paint (juce::Graphics& g)
     // Draw the plugin name and version
     g.setColour (juce::Colours::white);
     g.setFont (20.0f);
-    g.drawFittedText ("Dynamic EQ - Step 7 Complete (No Default Presets)", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
+    g.drawFittedText ("Dynamic EQ - Step 8: Frequency Response View", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
     
     g.setFont (12.0f);
     g.setColour (juce::Colours::lightgrey);
@@ -641,24 +683,54 @@ void VaclisDynamicEQAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
     
-    // Reserve space for title
-    bounds.removeFromTop(70);
+    // Reserve space for title and add control buttons
+    auto titleArea = bounds.removeFromTop(40); // Reduced height
+    auto buttonRow = titleArea.removeFromRight(120).removeFromBottom(25).reduced(5);
+    
+    // Add frequency response display area
+    auto frequencyResponseArea = bounds.removeFromTop(180); // Increased height by 50% (120 * 1.5 = 180)
+    
+    // Position frequency response display
+    if (frequencyResponseDisplay)
+    {
+        frequencyResponseDisplay->setBounds(frequencyResponseArea.reduced(10));
+    }
+    
+    // Position buttons side by side
+    auto specButtonArea = buttonRow.removeFromLeft(50);
+    auto scButtonArea = buttonRow.removeFromLeft(50);
+    
+    spectrumModeButton.setBounds(specButtonArea);
+    sidechainButton.setBounds(scButtonArea);
     
     // Create main layout area
     auto mainArea = bounds.reduced(10);
     
     // Input Gain (left side)
-    auto inputGainArea = mainArea.removeFromLeft(80);
+    auto inputGainArea = mainArea.removeFromLeft(100); // Wider for meter
     inputGainLabel.setBounds(inputGainArea.removeFromTop(20));
-    inputGainSlider.setBounds(inputGainArea.removeFromTop(250));
+    
+    auto inputControlsArea = inputGainArea.removeFromTop(250);
+    auto inputMeterArea = inputControlsArea.removeFromRight(15);
+    inputGainSlider.setBounds(inputControlsArea);
+    
+    if (inputLevelMeter)
+        inputLevelMeter->setBounds(inputMeterArea);
     
     // Output Gain (right side) 
-    auto outputGainArea = mainArea.removeFromRight(80);
+    auto outputGainArea = mainArea.removeFromRight(100); // Wider for meter
     outputGainLabel.setBounds(outputGainArea.removeFromTop(20));
-    outputGainSlider.setBounds(outputGainArea.removeFromTop(250));
+    
+    auto outputControlsArea = outputGainArea.removeFromTop(250);
+    auto outputMeterArea = outputControlsArea.removeFromLeft(15);
+    outputGainSlider.setBounds(outputControlsArea);
+    
+    if (outputLevelMeter)
+        outputLevelMeter->setBounds(outputMeterArea);
     
     // Multi-band area (center)
     auto bandsArea = mainArea.reduced(10, 0);
+    auto originalBandsArea = bandsArea; // Save for spectrum display
     int bandWidth = bandsArea.getWidth() / DynamicEQ::CURRENT_BANDS;
     
     // Calculate required height based on band components
@@ -688,6 +760,12 @@ void VaclisDynamicEQAudioProcessorEditor::resized()
             bandComponents[i]->setBounds(bandArea);
         }
     }
+    
+    // Old spectrum display not used in new design (keep hidden)
+    if (spectrumDisplay)
+    {
+        spectrumDisplay->setBounds(0, 0, 0, 0); // Hide by making it invisible
+    }
 }
 
 void VaclisDynamicEQAudioProcessorEditor::parameterChanged(const juce::String& parameterID, float newValue)
@@ -706,5 +784,19 @@ void VaclisDynamicEQAudioProcessorEditor::parameterChanged(const juce::String& p
             });
             break;
         }
+    }
+}
+
+void VaclisDynamicEQAudioProcessorEditor::timerCallback()
+{
+    // Update level meters with current audio levels
+    if (inputLevelMeter)
+    {
+        inputLevelMeter->updateLevel(audioProcessor.getInputLevel());
+    }
+    
+    if (outputLevelMeter)
+    {
+        outputLevelMeter->updateLevel(audioProcessor.getOutputLevel());
     }
 }

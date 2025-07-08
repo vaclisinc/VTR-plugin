@@ -145,6 +145,40 @@ void EQBand::processBuffer(juce::AudioBuffer<float>& buffer)
     }
 }
 
+void EQBand::processBuffer(juce::AudioBuffer<float>& buffer, const juce::AudioBuffer<float>* sidechainBuffer)
+{
+    // Get channel pointers
+    auto* leftChannel = buffer.getWritePointer(0);
+    auto* rightChannel = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : leftChannel;
+    int numSamples = buffer.getNumSamples();
+    
+    // Process through the active filter type first
+    switch (lastFilterType)
+    {
+        case FilterType::Bell:
+            bellFilter.processStereo(leftChannel, rightChannel, numSamples);
+            break;
+        case FilterType::HighShelf:
+            highShelfFilter.processStereo(leftChannel, rightChannel, numSamples);
+            break;
+        case FilterType::LowShelf:
+            lowShelfFilter.processStereo(leftChannel, rightChannel, numSamples);
+            break;
+        case FilterType::HighPass:
+            highPassFilter.processStereo(leftChannel, rightChannel, numSamples);
+            break;
+        case FilterType::LowPass:
+            lowPassFilter.processStereo(leftChannel, rightChannel, numSamples);
+            break;
+    }
+    
+    // Apply dynamics processing after EQ if enabled
+    if (dynamicsEnabled && !lastDynamicsBypass)
+    {
+        processDynamicsBlockWithSidechain(buffer, sidechainBuffer);
+    }
+}
+
 float EQBand::getCurrentFrequency() const
 {
     return lastFrequency;
@@ -368,6 +402,66 @@ void EQBand::processDynamicsBlock(juce::AudioBuffer<float>& buffer)
     lastGainReduction = 0.0f; // TODO: Extract actual gain reduction from chowdsp compressor
 }
 
+void EQBand::processDynamicsBlockWithSidechain(juce::AudioBuffer<float>& buffer, const juce::AudioBuffer<float>* sidechainBuffer)
+{
+    if (!dynamicsEnabled || lastDynamicsBypass)
+        return;
+    
+    const int numSamples = buffer.getNumSamples();
+    const int numChannels = buffer.getNumChannels();
+    
+    // Resize temporary buffers if needed
+    compressorBuffer.setSize(numChannels, numSamples, false, false, true);
+    keyInputBuffer.setSize(numChannels, numSamples, false, false, true);
+    
+    // Copy EQ-processed audio to compressor buffers
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        compressorBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
+    }
+    
+    // Use sidechain for key input if available, otherwise use main signal
+    if (sidechainBuffer != nullptr && sidechainBuffer->getNumChannels() > 0)
+    {
+        // Use sidechain input for key signal
+        const int sidechainChannels = juce::jmin(sidechainBuffer->getNumChannels(), numChannels);
+        for (int ch = 0; ch < sidechainChannels; ++ch)
+        {
+            keyInputBuffer.copyFrom(ch, 0, *sidechainBuffer, ch, 0, 
+                                   juce::jmin(numSamples, sidechainBuffer->getNumSamples()));
+        }
+        
+        // If sidechain has fewer channels, duplicate the last channel
+        for (int ch = sidechainChannels; ch < numChannels; ++ch)
+        {
+            keyInputBuffer.copyFrom(ch, 0, keyInputBuffer, sidechainChannels - 1, 0, numSamples);
+        }
+    }
+    else
+    {
+        // No sidechain - use main signal for key input
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            keyInputBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
+        }
+    }
+    
+    // Process through chowdsp compressor
+    chowdsp::BufferView<float> mainBufferView(compressorBuffer);
+    chowdsp::BufferView<const float> keyInputView(keyInputBuffer);
+    
+    compressor.processBlock(mainBufferView, keyInputView);
+    
+    // Copy processed audio back to original buffer
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        buffer.copyFrom(ch, 0, compressorBuffer, ch, 0, numSamples);
+    }
+    
+    // Store gain reduction for metering
+    lastGainReduction = 0.0f; // TODO: Extract actual gain reduction from chowdsp compressor
+}
+
 // Multi-band EQ implementation (foundation for future expansion)
 void MultiBandEQ::setNumBands(int numBands)
 {
@@ -447,6 +541,51 @@ void MultiBandEQ::processBuffer(juce::AudioBuffer<float>& buffer)
             if (bands[i] && isBandEnabled(i))
             {
                 bands[i]->processBuffer(buffer);
+            }
+        }
+    }
+}
+
+void MultiBandEQ::processBuffer(juce::AudioBuffer<float>& buffer, const juce::AudioBuffer<float>* sidechainBuffer)
+{
+    // Update all band parameters first
+    for (auto& band : bands)
+    {
+        if (band)
+            band->updateParameters();
+    }
+    
+    // Check if any band is soloed
+    bool anyBandSoloed = false;
+    for (int i = 0; i < static_cast<int>(bands.size()); ++i)
+    {
+        if (isBandSoloed(i))
+        {
+            anyBandSoloed = true;
+            break;
+        }
+    }
+    
+    // Process through bands based on enable/solo state
+    if (anyBandSoloed)
+    {
+        // Only process soloed bands with sidechain
+        for (int i = 0; i < static_cast<int>(bands.size()); ++i)
+        {
+            if (bands[i] && isBandSoloed(i))
+            {
+                bands[i]->processBuffer(buffer, sidechainBuffer);
+            }
+        }
+    }
+    else
+    {
+        // Process all enabled bands with sidechain
+        for (int i = 0; i < static_cast<int>(bands.size()); ++i)
+        {
+            if (bands[i] && isBandEnabled(i))
+            {
+                bands[i]->processBuffer(buffer, sidechainBuffer);
             }
         }
     }

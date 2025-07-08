@@ -25,7 +25,7 @@ cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
 
 3. **Build plugin:**
 ```bash
-cmake --build build --config Debug
+cmake --build build --config Debug 
 ```
 
 4. **Clean build (if needed):**
@@ -54,8 +54,8 @@ A static EQ plugin with four bands.
 - ✅ **Step 4**: Multiple filter types (Bell, Shelf, Pass)
 - ✅ **Step 5**: Multi-band system (4+ bands)
 - ✅ **Step 6**: Basic GUI with frequency response display
-- ⏳ **Step 7**: Add dynamics (per-band compression)
-- ⏳ **Step 8**: Enhanced features & visualization
+- ✅ **Step 7**: Add dynamics (per-band compression)
+- ✅ **Step 8**: Enhanced features & visualization
 - ⏳ **Step 9**: Optimization
 - ⏳ **Step 10**: Testing & polish
 

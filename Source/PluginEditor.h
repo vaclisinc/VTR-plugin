@@ -3,6 +3,9 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
 #include "DSP/EQBand.h"
+#include "SpectrumDisplay.h"
+#include "FrequencyResponseDisplay.h"
+#include "LevelMeter.h"
 
 // Forward declaration
 class VaclisDynamicEQAudioProcessor;
@@ -58,7 +61,6 @@ private:
     juce::TextButton dynamicsToggleButton;
     juce::Slider thresholdSlider, ratioSlider, attackSlider, releaseSlider, kneeSlider;
     juce::ComboBox detectionTypeCombo, modeCombo;
-    juce::TextButton dynamicsBypassButton;
     juce::Label thresholdLabel, ratioLabel, attackLabel, releaseLabel, kneeLabel;
     juce::Label detectionLabel, modeLabel;
     bool dynamicsExpanded = false;
@@ -78,7 +80,6 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> kneeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> detectionAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> modeAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> dynamicsBypassAttachment;
     
     // Helper methods
     void setupFilterTypeButtons();
@@ -96,7 +97,8 @@ private:
 };
 
 class VaclisDynamicEQAudioProcessorEditor  : public juce::AudioProcessorEditor,
-                                            public juce::AudioProcessorValueTreeState::Listener
+                                            public juce::AudioProcessorValueTreeState::Listener,
+                                            private juce::Timer
 {
 public:
     VaclisDynamicEQAudioProcessorEditor (VaclisDynamicEQAudioProcessor&);
@@ -107,6 +109,9 @@ public:
     
     // AudioProcessorValueTreeState::Listener
     void parameterChanged(const juce::String& parameterID, float newValue) override;
+    
+    // Timer callback for level meter updates
+    void timerCallback() override;
 
 private:
     VaclisDynamicEQAudioProcessor& audioProcessor;
@@ -124,6 +129,21 @@ private:
     
     // Multi-band control components  
     std::array<std::unique_ptr<BandControlComponent>, DynamicEQ::CURRENT_BANDS> bandComponents;
+    
+    // Frequency response display (new dedicated area)
+    std::unique_ptr<FrequencyResponseDisplay> frequencyResponseDisplay;
+    juce::TextButton spectrumModeButton;
+    
+    // Old spectrum display (keep for compatibility, but not used in new design)
+    std::unique_ptr<SpectrumDisplay> spectrumDisplay;
+    
+    // Level meters
+    std::unique_ptr<LevelMeter> inputLevelMeter;
+    std::unique_ptr<LevelMeter> outputLevelMeter;
+    
+    // Sidechain control
+    juce::TextButton sidechainButton;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> sidechainAttachment;
     
     // Layout and management
     void setupBandComponents();

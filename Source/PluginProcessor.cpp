@@ -7,6 +7,7 @@ VaclisDynamicEQAudioProcessor::VaclisDynamicEQAudioProcessor()
                      #if ! JucePlugin_IsMidiEffect
                       #if ! JucePlugin_IsSynth
                        .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
+                       .withInput  ("Sidechain", juce::AudioChannelSet::stereo(), false)
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
@@ -378,6 +379,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout VaclisDynamicEQAudioProcesso
         addDynamicsBypassParameter(layout, "dyn_bypass_band" + juce::String(band),
                                   "Dynamics Bypass " + bandNames[band], true);
     }
+    
+    // Sidechain parameter
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        "sidechain_enable",
+        "Sidechain Enable",
+        false  // Default off
+    ));
 
     return layout;
 }
@@ -452,6 +460,7 @@ void VaclisDynamicEQAudioProcessor::prepareToPlay (double sampleRate, int sample
     
     // Prepare modular DSP components
     multiBandEQ.prepare(sampleRate, samplesPerBlock);
+    spectrumAnalyzer.prepare(sampleRate, samplesPerBlock);
 }
 
 void VaclisDynamicEQAudioProcessor::releaseResources()
@@ -491,11 +500,56 @@ void VaclisDynamicEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    // Capture input for spectrum analysis and level metering
+    juce::AudioBuffer<float> inputBuffer(buffer.getNumChannels(), buffer.getNumSamples());
+    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+        inputBuffer.copyFrom(channel, 0, buffer, channel, 0, buffer.getNumSamples());
+    
+    // Calculate input level (RMS)
+    float inputRMS = 0.0f;
+    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+    {
+        inputRMS += buffer.getRMSLevel(channel, 0, buffer.getNumSamples());
+    }
+    inputRMS /= buffer.getNumChannels();
+    inputLevel.store(inputRMS);
+
+    // Check for sidechain input
+    const juce::AudioBuffer<float>* sidechainBuffer = nullptr;
+    bool sidechainEnabled = false;
+    
+    if (auto* sidechainParam = parameters.getRawParameterValue("sidechain_enable"))
+    {
+        sidechainEnabled = *sidechainParam > 0.5f;
+    }
+    
+    // Get sidechain input if enabled and available
+    if (sidechainEnabled && getBusCount(true) > 1)
+    {
+        auto sidechainBus = getBusBuffer(buffer, true, 1); // Sidechain is input bus 1
+        if (sidechainBus.getNumChannels() > 0 && sidechainBus.getNumSamples() > 0)
+        {
+            sidechainBuffer = &sidechainBus;
+        }
+    }
+    
     // Modular processing chain - clean and scalable
     updateParameterSmoothers();
     processInputGain(buffer);
-    processEQ(buffer);
+    processEQWithSidechain(buffer, sidechainBuffer);
     processOutputGain(buffer);
+    
+    // Calculate output level (RMS)
+    float outputRMS = 0.0f;
+    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+    {
+        outputRMS += buffer.getRMSLevel(channel, 0, buffer.getNumSamples());
+    }
+    outputRMS /= buffer.getNumChannels();
+    outputLevel.store(outputRMS);
+    
+    // Spectrum analysis with input and output
+    spectrumAnalyzer.processBlock(inputBuffer, buffer);
 }
 
 void VaclisDynamicEQAudioProcessor::updateParameterSmoothers()
@@ -534,6 +588,12 @@ void VaclisDynamicEQAudioProcessor::processEQ(juce::AudioBuffer<float>& buffer)
 {
     // Multi-band EQ processing with enable/disable and solo support
     multiBandEQ.processBuffer(buffer);
+}
+
+void VaclisDynamicEQAudioProcessor::processEQWithSidechain(juce::AudioBuffer<float>& buffer, const juce::AudioBuffer<float>* sidechainBuffer)
+{
+    // Multi-band EQ processing with sidechain support
+    multiBandEQ.processBuffer(buffer, sidechainBuffer);
 }
 
 void VaclisDynamicEQAudioProcessor::processOutputGain(juce::AudioBuffer<float>& buffer)

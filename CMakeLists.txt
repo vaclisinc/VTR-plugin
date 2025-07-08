@@ -48,6 +48,14 @@ target_sources(vaclis-DynamicEQ
         Source/DSP/EQBand.h
         Source/DSP/GainProcessor.cpp
         Source/DSP/GainProcessor.h
+        Source/SpectrumAnalyzer.cpp
+        Source/SpectrumAnalyzer.h
+        Source/SpectrumDisplay.cpp
+        Source/SpectrumDisplay.h
+        Source/FrequencyResponseDisplay.cpp
+        Source/FrequencyResponseDisplay.h
+        Source/LevelMeter.cpp
+        Source/LevelMeter.h
 )
 
 # Compile definitions

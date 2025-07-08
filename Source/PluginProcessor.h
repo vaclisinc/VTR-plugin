@@ -3,9 +3,11 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <cmath>
+#include <atomic>
 #include "Parameters/ParameterManager.h"
 #include "DSP/EQBand.h"
 #include "DSP/GainProcessor.h"
+#include "SpectrumAnalyzer.h"
 
 class VaclisDynamicEQAudioProcessor  : public juce::AudioProcessor
 {
@@ -42,6 +44,11 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState& getValueTreeState() { return parameters; }
+    SpectrumAnalyzer& getSpectrumAnalyzer() { return spectrumAnalyzer; }
+    
+    // Level metering
+    float getInputLevel() const { return inputLevel.load(); }
+    float getOutputLevel() const { return outputLevel.load(); }
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -115,11 +122,17 @@ private:
     DynamicEQ::GainProcessor inputGain;
     DynamicEQ::GainProcessor outputGain;
     DynamicEQ::MultiBandEQ multiBandEQ;
+    SpectrumAnalyzer spectrumAnalyzer;
+    
+    // Level metering (atomic for thread safety)
+    std::atomic<float> inputLevel{0.0f};
+    std::atomic<float> outputLevel{0.0f};
     
     // Processing helper methods
     void updateParameterSmoothers();
     void processInputGain(juce::AudioBuffer<float>& buffer);
     void processEQ(juce::AudioBuffer<float>& buffer);
+    void processEQWithSidechain(juce::AudioBuffer<float>& buffer, const juce::AudioBuffer<float>* sidechainBuffer);
     void processOutputGain(juce::AudioBuffer<float>& buffer);
     
     // Safety monitoring
