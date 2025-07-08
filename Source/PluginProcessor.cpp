@@ -376,7 +376,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout VaclisDynamicEQAudioProcesso
         addDynamicsModeParameter(layout, "dyn_mode_band" + juce::String(band),
                                 "Dynamics Mode " + bandNames[band], 0.0f);
         addDynamicsBypassParameter(layout, "dyn_bypass_band" + juce::String(band),
-                                  "Dynamics Bypass " + bandNames[band], false);
+                                  "Dynamics Bypass " + bandNames[band], true);
     }
 
     return layout;

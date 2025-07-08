@@ -54,6 +54,15 @@ private:
     };
     std::vector<FilterTypeButton> filterTypeButtons;
     
+    // Dynamics controls
+    juce::TextButton dynamicsToggleButton;
+    juce::Slider thresholdSlider, ratioSlider, attackSlider, releaseSlider, kneeSlider;
+    juce::ComboBox detectionTypeCombo, modeCombo;
+    juce::TextButton dynamicsBypassButton;
+    juce::Label thresholdLabel, ratioLabel, attackLabel, releaseLabel, kneeLabel;
+    juce::Label detectionLabel, modeLabel;
+    bool dynamicsExpanded = false;
+    
     // Parameter attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> freqAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gainAttachment;
@@ -61,10 +70,27 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> enableAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> soloAttachment;
     
+    // Dynamics parameter attachments
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> thresholdAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> ratioAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attackAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> releaseAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> kneeAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> detectionAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> modeAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> dynamicsBypassAttachment;
+    
     // Helper methods
     void setupFilterTypeButtons();
     void createFilterTypeButton(int index, const juce::String& text, juce::Colour colour);
     void filterTypeButtonClicked(int filterType);
+    void setupDynamicsControls();
+    void toggleDynamicsSection();
+    
+public:
+    int getRequiredHeight() const;
+    
+private:
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BandControlComponent)
 };

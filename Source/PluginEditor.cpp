@@ -28,7 +28,7 @@ void BandControlComponent::setupComponents()
     frequencyRangeLabel.setText(frequencyRanges[bandIndex], juce::dontSendNotification);
     frequencyRangeLabel.setJustificationType(juce::Justification::centred);
     frequencyRangeLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
-    frequencyRangeLabel.setFont(juce::Font(10.0f));
+    frequencyRangeLabel.setFont(juce::Font(juce::FontOptions(10.0f)));
     addAndMakeVisible(frequencyRangeLabel);
     
     // Enable/Disable button
@@ -95,23 +95,26 @@ void BandControlComponent::setupComponents()
     freqLabel.setText("Freq", juce::dontSendNotification);
     freqLabel.setJustificationType(juce::Justification::centred);
     freqLabel.setColour(juce::Label::textColourId, juce::Colours::white);
-    freqLabel.setFont(juce::Font(10.0f));
+    freqLabel.setFont(juce::Font(juce::FontOptions(10.0f)));
     addAndMakeVisible(freqLabel);
     
     gainLabel.setText("Gain", juce::dontSendNotification);
     gainLabel.setJustificationType(juce::Justification::centred);
     gainLabel.setColour(juce::Label::textColourId, juce::Colours::white);
-    gainLabel.setFont(juce::Font(10.0f));
+    gainLabel.setFont(juce::Font(juce::FontOptions(10.0f)));
     addAndMakeVisible(gainLabel);
     
     qLabel.setText("Q", juce::dontSendNotification);
     qLabel.setJustificationType(juce::Justification::centred);
     qLabel.setColour(juce::Label::textColourId, juce::Colours::white);
-    qLabel.setFont(juce::Font(10.0f));
+    qLabel.setFont(juce::Font(juce::FontOptions(10.0f)));
     addAndMakeVisible(qLabel);
     
     // Setup filter type buttons
     setupFilterTypeButtons();
+    
+    // Setup dynamics controls
+    setupDynamicsControls();
     
     // Create parameter attachments
     juce::String bandSuffix = juce::String(bandIndex);
@@ -225,6 +228,180 @@ void BandControlComponent::updateFilterTypeButtonStates(int filterType)
     }
 }
 
+void BandControlComponent::setupDynamicsControls()
+{
+    // Dynamics toggle button
+    dynamicsToggleButton.setButtonText("DYNAMICS");
+    dynamicsToggleButton.setToggleable(true);
+    dynamicsToggleButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::cyan);
+    dynamicsToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
+    dynamicsToggleButton.onClick = [this]() { toggleDynamicsSection(); };
+    addAndMakeVisible(dynamicsToggleButton);
+    
+    // Dynamics sliders (rotary style)
+    auto setupRotarySlider = [this](juce::Slider& slider, juce::Label& label, const juce::String& labelText) {
+        slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 55, 14); // Wider text box, taller text
+        slider.setColour(juce::Slider::textBoxTextColourId, juce::Colours::white);
+        slider.setColour(juce::Slider::rotarySliderFillColourId, juce::Colours::cyan);
+        slider.setColour(juce::Slider::thumbColourId, juce::Colours::white);
+        slider.setColour(juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
+        slider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+        addAndMakeVisible(slider);
+        
+        label.setText(labelText, juce::dontSendNotification);
+        label.setJustificationType(juce::Justification::centred);
+        label.setColour(juce::Label::textColourId, juce::Colours::white);
+        label.setFont(juce::Font(juce::FontOptions(10.0f))); // Consistent font size, using modern constructor
+        addAndMakeVisible(label);
+        
+        // Initially hidden
+        slider.setVisible(false);
+        label.setVisible(false);
+    };
+    
+    setupRotarySlider(thresholdSlider, thresholdLabel, "Thresh");
+    setupRotarySlider(ratioSlider, ratioLabel, "Ratio");
+    setupRotarySlider(attackSlider, attackLabel, "Attack");
+    setupRotarySlider(releaseSlider, releaseLabel, "Release");
+    setupRotarySlider(kneeSlider, kneeLabel, "Knee");
+    
+    // Detection type combo box
+    detectionTypeCombo.addItem("Peak", 1);
+    detectionTypeCombo.addItem("RMS", 2);
+    detectionTypeCombo.addItem("Blend", 3);
+    detectionTypeCombo.setSelectedId(1);
+    detectionTypeCombo.setColour(juce::ComboBox::textColourId, juce::Colours::white);
+    detectionTypeCombo.setColour(juce::ComboBox::backgroundColourId, juce::Colours::darkgrey);
+    detectionTypeCombo.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
+    addAndMakeVisible(detectionTypeCombo);
+    
+    detectionLabel.setText("Detection", juce::dontSendNotification);
+    detectionLabel.setJustificationType(juce::Justification::centred);
+    detectionLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    detectionLabel.setFont(juce::Font(juce::FontOptions(10.0f))); // Consistent font size
+    addAndMakeVisible(detectionLabel);
+    
+    // Mode combo box
+    modeCombo.addItem("Compressive", 1);
+    modeCombo.addItem("Expansive", 2);
+    modeCombo.addItem("De-esser", 3);
+    modeCombo.addItem("Gate", 4);
+    modeCombo.setSelectedId(1);
+    modeCombo.setColour(juce::ComboBox::textColourId, juce::Colours::white);
+    modeCombo.setColour(juce::ComboBox::backgroundColourId, juce::Colours::darkgrey);
+    modeCombo.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
+    addAndMakeVisible(modeCombo);
+    
+    modeLabel.setText("Mode", juce::dontSendNotification);
+    modeLabel.setJustificationType(juce::Justification::centred);
+    modeLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    modeLabel.setFont(juce::Font(juce::FontOptions(10.0f))); // Consistent font size
+    addAndMakeVisible(modeLabel);
+    
+    // Dynamics bypass button
+    dynamicsBypassButton.setButtonText("BYPASS");
+    dynamicsBypassButton.setToggleable(true);
+    dynamicsBypassButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::red);
+    dynamicsBypassButton.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
+    addAndMakeVisible(dynamicsBypassButton);
+    
+    // Initially hide combo boxes and bypass button
+    detectionTypeCombo.setVisible(false);
+    detectionLabel.setVisible(false);
+    modeCombo.setVisible(false);
+    modeLabel.setVisible(false);
+    dynamicsBypassButton.setVisible(false);
+    
+    // Create parameter attachments
+    juce::String bandSuffix = juce::String(bandIndex);
+    
+    thresholdAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getValueTreeState(), "dyn_threshold_band" + bandSuffix, thresholdSlider);
+    
+    ratioAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getValueTreeState(), "dyn_ratio_band" + bandSuffix, ratioSlider);
+    
+    attackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getValueTreeState(), "dyn_attack_band" + bandSuffix, attackSlider);
+    
+    releaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getValueTreeState(), "dyn_release_band" + bandSuffix, releaseSlider);
+    
+    kneeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getValueTreeState(), "dyn_knee_band" + bandSuffix, kneeSlider);
+    
+    detectionAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        audioProcessor.getValueTreeState(), "dyn_detection_band" + bandSuffix, detectionTypeCombo);
+    
+    modeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        audioProcessor.getValueTreeState(), "dyn_mode_band" + bandSuffix, modeCombo);
+    
+    dynamicsBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.getValueTreeState(), "dyn_bypass_band" + bandSuffix, dynamicsBypassButton);
+    
+    // Initialize bypass button state from parameter (should be true by default)
+    juce::String bypassParamID = "dyn_bypass_band" + bandSuffix;
+    auto* bypassParam = audioProcessor.getValueTreeState().getParameter(bypassParamID);
+    if (bypassParam)
+    {
+        float bypassValue = bypassParam->getValue();
+        dynamicsBypassButton.setToggleState(bypassValue > 0.5f, juce::dontSendNotification);
+    }
+}
+
+void BandControlComponent::toggleDynamicsSection()
+{
+    dynamicsExpanded = !dynamicsExpanded;
+    
+    // Update button state
+    dynamicsToggleButton.setToggleState(dynamicsExpanded, juce::dontSendNotification);
+    
+    // Link dynamics section state to bypass parameter
+    juce::String bypassParamID = "dyn_bypass_band" + juce::String(bandIndex);
+    if (auto* bypassParam = dynamic_cast<juce::AudioParameterBool*>(
+        audioProcessor.getValueTreeState().getParameter(bypassParamID)))
+    {
+        // When expanding dynamics section, enable dynamics (bypass = false)
+        // When collapsing dynamics section, disable dynamics (bypass = true)
+        *bypassParam = !dynamicsExpanded;
+    }
+    
+    // Show/hide dynamics controls
+    thresholdSlider.setVisible(dynamicsExpanded);
+    thresholdLabel.setVisible(dynamicsExpanded);
+    ratioSlider.setVisible(dynamicsExpanded);
+    ratioLabel.setVisible(dynamicsExpanded);
+    attackSlider.setVisible(dynamicsExpanded);
+    attackLabel.setVisible(dynamicsExpanded);
+    releaseSlider.setVisible(dynamicsExpanded);
+    releaseLabel.setVisible(dynamicsExpanded);
+    kneeSlider.setVisible(dynamicsExpanded);
+    kneeLabel.setVisible(dynamicsExpanded);
+    
+    detectionTypeCombo.setVisible(dynamicsExpanded);
+    detectionLabel.setVisible(dynamicsExpanded);
+    modeCombo.setVisible(dynamicsExpanded);
+    modeLabel.setVisible(dynamicsExpanded);
+    dynamicsBypassButton.setVisible(dynamicsExpanded);
+    
+    // Trigger layout update
+    resized();
+    
+    // Notify parent that our size requirements have changed
+    if (auto* parent = getParentComponent())
+    {
+        parent->resized();
+    }
+}
+
+int BandControlComponent::getRequiredHeight() const
+{
+    int baseHeight = 280; // Base height for EQ controls
+    int dynamicsHeight = dynamicsExpanded ? 155 : 0; // Additional height for dynamics (increased for better text display)
+    return baseHeight + dynamicsHeight;
+}
+
 void BandControlComponent::paint(juce::Graphics& g)
 {
     // Band background with different colors
@@ -293,6 +470,73 @@ void BandControlComponent::resized()
     freqSlider.setBounds(startX, sliderArea.getY(), controlWidth, sliderArea.getHeight());
     gainSlider.setBounds(startX + controlWidth, sliderArea.getY(), controlWidth, sliderArea.getHeight());
     qSlider.setBounds(startX + controlWidth * 2, sliderArea.getY(), controlWidth, sliderArea.getHeight());
+    
+    // Dynamics section
+    bounds.removeFromTop(10); // spacing
+    
+    // Dynamics toggle button
+    auto dynamicsToggleArea = bounds.removeFromTop(25);
+    dynamicsToggleButton.setBounds(dynamicsToggleArea);
+    
+    // Dynamics controls (only layout if expanded)
+    if (dynamicsExpanded)
+    {
+        bounds.removeFromTop(10); // spacing
+        
+        // Row 1: Threshold, Ratio, Attack, Release (4 rotary sliders)
+        auto dynamicsRow1LabelArea = bounds.removeFromTop(15); // Taller for better text display
+        auto dynamicsRow1SliderArea = bounds.removeFromTop(70); // Taller for text boxes
+        
+        int dynamicsControlWidth = 50; // Wider for better text display
+        int dynamicsSpacing = (bounds.getWidth() - (dynamicsControlWidth * 4)) / 5;
+        
+        // Position first row labels and sliders
+        int currentX = dynamicsSpacing;
+        
+        thresholdLabel.setBounds(currentX, dynamicsRow1LabelArea.getY(), dynamicsControlWidth, dynamicsRow1LabelArea.getHeight());
+        thresholdSlider.setBounds(currentX, dynamicsRow1SliderArea.getY(), dynamicsControlWidth, dynamicsRow1SliderArea.getHeight());
+        currentX += dynamicsControlWidth + dynamicsSpacing;
+        
+        ratioLabel.setBounds(currentX, dynamicsRow1LabelArea.getY(), dynamicsControlWidth, dynamicsRow1LabelArea.getHeight());
+        ratioSlider.setBounds(currentX, dynamicsRow1SliderArea.getY(), dynamicsControlWidth, dynamicsRow1SliderArea.getHeight());
+        currentX += dynamicsControlWidth + dynamicsSpacing;
+        
+        attackLabel.setBounds(currentX, dynamicsRow1LabelArea.getY(), dynamicsControlWidth, dynamicsRow1LabelArea.getHeight());
+        attackSlider.setBounds(currentX, dynamicsRow1SliderArea.getY(), dynamicsControlWidth, dynamicsRow1SliderArea.getHeight());
+        currentX += dynamicsControlWidth + dynamicsSpacing;
+        
+        releaseLabel.setBounds(currentX, dynamicsRow1LabelArea.getY(), dynamicsControlWidth, dynamicsRow1LabelArea.getHeight());
+        releaseSlider.setBounds(currentX, dynamicsRow1SliderArea.getY(), dynamicsControlWidth, dynamicsRow1SliderArea.getHeight());
+        
+        bounds.removeFromTop(5); // spacing
+        
+        // Row 2: Knee, Detection, Mode
+        auto dynamicsRow2LabelArea = bounds.removeFromTop(15); // Taller for better text display
+        auto dynamicsRow2ControlArea = bounds.removeFromTop(50); // Taller for better control display
+        
+        int row2ControlWidth = 65; // Wider for better text display
+        int row2Spacing = (bounds.getWidth() - (row2ControlWidth * 3)) / 4;
+        currentX = row2Spacing;
+        
+        kneeLabel.setBounds(currentX, dynamicsRow2LabelArea.getY(), row2ControlWidth, dynamicsRow2LabelArea.getHeight());
+        kneeSlider.setBounds(currentX, dynamicsRow2ControlArea.getY(), row2ControlWidth, 45);
+        currentX += row2ControlWidth + row2Spacing;
+        
+        detectionLabel.setBounds(currentX, dynamicsRow2LabelArea.getY(), row2ControlWidth, dynamicsRow2LabelArea.getHeight());
+        detectionTypeCombo.setBounds(currentX, dynamicsRow2ControlArea.getY(), row2ControlWidth, 22); // Taller combo box
+        currentX += row2ControlWidth + row2Spacing;
+        
+        modeLabel.setBounds(currentX, dynamicsRow2LabelArea.getY(), row2ControlWidth, dynamicsRow2LabelArea.getHeight());
+        modeCombo.setBounds(currentX, dynamicsRow2ControlArea.getY(), row2ControlWidth, 22); // Taller combo box
+        
+        bounds.removeFromTop(5); // spacing
+        
+        // Row 3: Bypass button
+        auto bypassArea = bounds.removeFromTop(25);
+        int bypassWidth = 80;
+        int bypassX = (bounds.getWidth() - bypassWidth) / 2;
+        dynamicsBypassButton.setBounds(bypassX, bypassArea.getY(), bypassWidth, bypassArea.getHeight());
+    }
 }
 
 VaclisDynamicEQAudioProcessorEditor::VaclisDynamicEQAudioProcessorEditor (VaclisDynamicEQAudioProcessor& p)
@@ -384,7 +628,7 @@ void VaclisDynamicEQAudioProcessorEditor::paint (juce::Graphics& g)
     // Draw the plugin name and version
     g.setColour (juce::Colours::white);
     g.setFont (20.0f);
-    g.drawFittedText ("Dynamic EQ - Step 7 with chowdsp Dynamics", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
+    g.drawFittedText ("Dynamic EQ - Step 7 Complete (No Default Presets)", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
     
     g.setFont (12.0f);
     g.setColour (juce::Colours::lightgrey);
@@ -416,6 +660,24 @@ void VaclisDynamicEQAudioProcessorEditor::resized()
     // Multi-band area (center)
     auto bandsArea = mainArea.reduced(10, 0);
     int bandWidth = bandsArea.getWidth() / DynamicEQ::CURRENT_BANDS;
+    
+    // Calculate required height based on band components
+    int maxRequiredHeight = 280; // Base height
+    for (int i = 0; i < DynamicEQ::CURRENT_BANDS; ++i)
+    {
+        if (bandComponents[i])
+        {
+            maxRequiredHeight = juce::jmax(maxRequiredHeight, bandComponents[i]->getRequiredHeight());
+        }
+    }
+    
+    // Ensure the editor window is tall enough
+    int requiredEditorHeight = 70 + 20 + maxRequiredHeight + 40; // title + margins + band height + bottom margin
+    if (getHeight() < requiredEditorHeight)
+    {
+        setSize(getWidth(), requiredEditorHeight);
+        return; // resized() will be called again with the new size
+    }
     
     for (int i = 0; i < DynamicEQ::CURRENT_BANDS; ++i)
     {
