@@ -14,7 +14,7 @@ A professional multi-band dynamic EQ plugin built with JUCE and modular architec
 1. **Clone and initialize submodules:**
 ```bash
 git clone https://github.com/vaclisPG/vaclis-DynamicEQ.git
-cd vac-first-plugin
+cd vaclis-DynamicEQ.git
 git submodule update --init --recursive
 ```
 
@@ -41,26 +41,9 @@ rm -rf build
 - **AU**: `~/Library/Audio/Plug-Ins/Components/vaclis-DynamicEQ.component`
 - **VST3**: `~/Library/Audio/Plug-Ins/VST3/vaclis-DynamicEQ.vst3`
 
-## Current Features (Step 3.1)
+## Current Features (Step 6)
 
-### Audio Processing
-- Professional Bell/Peak EQ filter using JUCE DSP
-- Input and output gain controls with smart limiting
-- Real-time parameter smoothing (30ms)
-- Scalable parameter management system
-
-### GUI Controls
-- **Input Gain**: Audio input level control
-- **EQ Freq**: Filter frequency (20Hz - 20kHz, logarithmic)
-- **EQ Gain**: Filter gain (±12dB, linear)
-- **EQ Q**: Filter Q factor (0.1 - 10, logarithmic)
-- **Output Gain**: Audio output level control
-
-### Technical Specs
-- **Sample Rates**: 44.1kHz - 192kHz
-- **Channels**: Mono/Stereo
-- **Latency**: Zero latency
-- **CPU Usage**: Minimal (single biquad per channel)
+A static EQ plugin with four bands.
 
 ## Development Status
 
@@ -68,9 +51,9 @@ rm -rf build
 - ✅ **Step 2**: Scalable parameter system architecture  
 - ✅ **Step 3**: Single band EQ with professional filters
 - ✅ **Step 3.1**: Modular architecture refactor
-- ⏳ **Step 4**: Multiple filter types (Bell, Shelf, Pass)
-- ⏳ **Step 5**: Multi-band system (4+ bands)
-- ⏳ **Step 6**: Basic GUI with frequency response display
+- ✅ **Step 4**: Multiple filter types (Bell, Shelf, Pass)
+- ✅ **Step 5**: Multi-band system (4+ bands)
+- ✅ **Step 6**: Basic GUI with frequency response display
 - ⏳ **Step 7**: Add dynamics (per-band compression)
 - ⏳ **Step 8**: Enhanced features & visualization
 - ⏳ **Step 9**: Optimization
