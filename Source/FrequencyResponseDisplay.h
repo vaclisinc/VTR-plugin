@@ -2,6 +2,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "SpectrumAnalyzer.h"
+#include <chowdsp_visualizers/chowdsp_visualizers.h>
 
 class VaclisDynamicEQAudioProcessor;
 
@@ -55,6 +56,13 @@ public:
     std::vector<float> calculateBandResponse(int bandIndex, int numPoints = 512);
     std::vector<float> calculateCombinedEQResponse(int numPoints = 512);
     
+    // Filter response calculation methods
+    float calculateBellResponse(float freq, float centerFreq, float gainDB, float Q) const;
+    float calculateHighShelfResponse(float freq, float cutoffFreq, float gainDB, float Q) const;
+    float calculateLowShelfResponse(float freq, float cutoffFreq, float gainDB, float Q) const;
+    float calculateHighPassResponse(float freq, float cutoffFreq, float Q) const;
+    float calculateLowPassResponse(float freq, float cutoffFreq, float Q) const;
+    
     // Coordinate conversion helpers
     float xToFrequency(float x) const;
     float yToGainDB(float y) const;
@@ -101,13 +109,13 @@ private:
     // Visual parameters
     static constexpr float MIN_FREQUENCY = 20.0f;
     static constexpr float MAX_FREQUENCY = 20000.0f;
-    static constexpr float MIN_MAGNITUDE_DB = -40.0f;
-    static constexpr float MAX_MAGNITUDE_DB = 40.0f;
+    static constexpr float MIN_MAGNITUDE_DB = -24.0f;
+    static constexpr float MAX_MAGNITUDE_DB = 12.0f;
     static constexpr float UPDATE_RATE_HZ = 30.0f;
     
     // Grid parameters
-    static constexpr int FREQUENCY_GRID_LINES = 9; // 20Hz, 50Hz, 100Hz, 200Hz, 500Hz, 1kHz, 2kHz, 5kHz, 10kHz, 20kHz
-    static constexpr int MAGNITUDE_GRID_LINES = 9; // -40, -30, -20, -10, 0, +10, +20, +30, +40 dB
+    static constexpr int FREQUENCY_GRID_LINES = 10; // 20Hz, 50Hz, 100Hz, 200Hz, 500Hz, 1kHz, 2kHz, 5kHz, 10kHz, 20kHz
+    static constexpr int MAGNITUDE_GRID_LINES = 7; // -24, -18, -12, -6, 0, +6, +12 dB
     
     // Colors
     juce::Colour backgroundColour = juce::Colour(0xFF1A1A1A);

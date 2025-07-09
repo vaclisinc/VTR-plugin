@@ -49,6 +49,10 @@ void FrequencyResponseDisplay::paint(juce::Graphics& g)
     // Draw spectrum if visible and data available
     if (spectrumVisible)
     {
+        // Save graphics state and create clipping region
+        g.saveState();
+        g.reduceClipRegion(getLocalBounds());
+        
         // Draw input spectrum
         if ((displayMode == DisplayMode::Input || displayMode == DisplayMode::Both) && !inputSpectrum.empty())
         {
@@ -64,6 +68,9 @@ void FrequencyResponseDisplay::paint(juce::Graphics& g)
             g.setColour(outputSpectrumColour);
             g.strokePath(outputPath, juce::PathStrokeType(2.0f));
         }
+        
+        // Restore graphics state
+        g.restoreState();
     }
     
     // Draw EQ curve if enabled and processor available
@@ -164,8 +171,8 @@ void FrequencyResponseDisplay::drawMagnitudeGrid(juce::Graphics& g)
 {
     g.setColour(gridColour);
     
-    // Magnitude grid lines (linear in dB) - equal positive and negative ranges
-    const float magnitudes[] = {-40.0f, -30.0f, -20.0f, -10.0f, 0.0f, 10.0f, 20.0f, 30.0f, 40.0f};
+    // Magnitude grid lines matching the actual EQ range (+12 to -24 dB)
+    const float magnitudes[] = {-24.0f, -18.0f, -12.0f, -6.0f, 0.0f, 6.0f, 12.0f};
     
     for (float mag : magnitudes)
     {
@@ -208,8 +215,8 @@ void FrequencyResponseDisplay::drawMagnitudeLabels(juce::Graphics& g)
     g.setColour(textColour);
     g.setFont(9.0f);
     
-    // Magnitude labels - equal positive and negative ranges
-    const float magnitudes[] = {-40.0f, -30.0f, -20.0f, -10.0f, 0.0f, 10.0f, 20.0f, 30.0f, 40.0f};
+    // Magnitude labels matching the actual EQ range (+12 to -24 dB)
+    const float magnitudes[] = {-24.0f, -18.0f, -12.0f, -6.0f, 0.0f, 6.0f, 12.0f};
     
     for (float mag : magnitudes)
     {
@@ -226,15 +233,6 @@ juce::Path FrequencyResponseDisplay::createSpectrumPath(const std::vector<float>
     if (spectrum.empty())
         return path;
     
-    const auto bounds = getLocalBounds().toFloat();
-    const float width = bounds.getWidth();
-    const float height = bounds.getHeight();
-    
-    // Account for margins
-    const float margin = 20.0f;
-    const float effectiveWidth = width - (margin * 2);
-    const float effectiveHeight = height - (margin * 2);
-    
     // Start path
     bool pathStarted = false;
     
@@ -248,9 +246,12 @@ juce::Path FrequencyResponseDisplay::createSpectrumPath(const std::vector<float>
         if (frequency < MIN_FREQUENCY || frequency > MAX_FREQUENCY)
             continue;
         
-        // Convert to screen coordinates with margins
-        const float x = margin + (frequencyToX(frequency) - margin) * (effectiveWidth / (width - margin * 2));
-        const float y = margin + (magnitudeToY(spectrum[i]) - margin) * (effectiveHeight / (height - margin * 2));
+        // Clamp spectrum value to display range
+        const float clampedMagnitude = juce::jlimit(MIN_MAGNITUDE_DB, MAX_MAGNITUDE_DB, spectrum[i]);
+        
+        // Convert to screen coordinates
+        const float x = frequencyToX(frequency);
+        const float y = magnitudeToY(clampedMagnitude);
         
         // Add to path
         if (!pathStarted)
@@ -372,7 +373,7 @@ void FrequencyResponseDisplay::updateEQPointPosition(int bandIndex, juce::Point<
         
         // Clamp values to valid ranges
         eqPoints[bandIndex].frequency = juce::jlimit(20.0f, 20000.0f, eqPoints[bandIndex].frequency);
-        eqPoints[bandIndex].gainDB = juce::jlimit(-30.0f, 30.0f, eqPoints[bandIndex].gainDB);
+        eqPoints[bandIndex].gainDB = juce::jlimit(-24.0f, 12.0f, eqPoints[bandIndex].gainDB);
     }
 }
 
@@ -395,7 +396,8 @@ void FrequencyResponseDisplay::updateParameterFromEQPoint(int bandIndex)
     juce::String gainParamID = "eq_gain_band" + juce::String(bandIndex);
     if (auto* gainParam = audioProcessor->getValueTreeState().getParameter(gainParamID))
     {
-        float normalizedGain = (point.gainDB + 30.0f) / 60.0f;
+        // Convert from actual dB range (-24 to +12) to normalized (0-1)
+        float normalizedGain = (point.gainDB + 24.0f) / 36.0f;
         gainParam->setValueNotifyingHost(normalizedGain);
     }
 }
@@ -426,7 +428,8 @@ void FrequencyResponseDisplay::updateEQPointsFromParameters()
         if (auto* gainParam = audioProcessor->getValueTreeState().getParameter(gainParamID))
         {
             float normalizedGain = gainParam->getValue();
-            eqPoints[i].gainDB = (normalizedGain * 60.0f) - 30.0f;
+            // Convert from normalized (0-1) to actual dB range (-24 to +12)
+            eqPoints[i].gainDB = -24.0f + (normalizedGain * 36.0f);
         }
         else
         {
@@ -500,18 +503,50 @@ std::vector<float> FrequencyResponseDisplay::calculateBandResponse(int bandIndex
     // Get current band parameters
     auto& point = eqPoints[bandIndex];
     
+    // Get filter type from parameter
+    DynamicEQ::FilterType filterType = DynamicEQ::FilterType::Bell; // Default
+    juce::String typeParamID = "eq_type_band" + juce::String(bandIndex);
+    if (auto* typeParam = audioProcessor->getValueTreeState().getParameter(typeParamID))
+    {
+        int typeIndex = static_cast<int>(typeParam->getValue() * 4.99f); // 0-4 range
+        filterType = static_cast<DynamicEQ::FilterType>(typeIndex);
+    }
+    
+    const float sampleRate = 48000.0f; // Assume 48kHz for visualization
+    
     // Calculate response for each frequency point
     for (int i = 0; i < numPoints; ++i)
     {
         float freq = MIN_FREQUENCY * std::pow(MAX_FREQUENCY / MIN_FREQUENCY, (float)i / (numPoints - 1));
+        float magnitude = 0.0f;
         
-        // Simple bell filter response calculation
-        float omega = 2.0f * juce::MathConstants<float>::pi * freq / 48000.0f; // Assume 48kHz
-        float centerOmega = 2.0f * juce::MathConstants<float>::pi * point.frequency / 48000.0f;
-        
-        // Bell filter frequency response approximation
-        float deltaOmega = omega - centerOmega;
-        float magnitude = point.gainDB / (1.0f + std::pow(deltaOmega * point.Q, 2.0f));
+        // Calculate different filter responses based on type
+        switch (filterType)
+        {
+            case DynamicEQ::FilterType::Bell:
+                magnitude = calculateBellResponse(freq, point.frequency, point.gainDB, point.Q);
+                break;
+                
+            case DynamicEQ::FilterType::HighShelf:
+                magnitude = calculateHighShelfResponse(freq, point.frequency, point.gainDB, point.Q);
+                break;
+                
+            case DynamicEQ::FilterType::LowShelf:
+                magnitude = calculateLowShelfResponse(freq, point.frequency, point.gainDB, point.Q);
+                break;
+                
+            case DynamicEQ::FilterType::HighPass:
+                magnitude = calculateHighPassResponse(freq, point.frequency, point.Q);
+                break;
+                
+            case DynamicEQ::FilterType::LowPass:
+                magnitude = calculateLowPassResponse(freq, point.frequency, point.Q);
+                break;
+                
+            default:
+                magnitude = 0.0f;
+                break;
+        }
         
         response[i] = magnitude;
     }
@@ -595,4 +630,111 @@ void FrequencyResponseDisplay::updateEQPointScreenPositions()
         eqPoints[i].screenPosition.x = frequencyToX(eqPoints[i].frequency);
         eqPoints[i].screenPosition.y = magnitudeToY(eqPoints[i].gainDB);
     }
+}
+
+// Filter response calculation methods
+float FrequencyResponseDisplay::calculateBellResponse(float freq, float centerFreq, float gainDB, float Q) const
+{
+    if (std::abs(gainDB) < 0.01f) return 0.0f; // No gain, no response
+    
+    // Use chowdsp's actual bell filter response
+    chowdsp::EQ::BellPlot bellPlot;
+    bellPlot.setCutoffFrequency(centerFreq);
+    bellPlot.setGainDecibels(gainDB);
+    bellPlot.setQValue(Q);
+    
+    // Get the actual magnitude response and convert to dB
+    float magnitude = bellPlot.getMagnitudeForFrequency(freq);
+    return juce::Decibels::gainToDecibels(magnitude);
+}
+
+float FrequencyResponseDisplay::calculateHighShelfResponse(float freq, float cutoffFreq, float gainDB, float Q) const
+{
+    if (std::abs(gainDB) < 0.01f) return 0.0f;
+    
+    // Manual high shelf calculation (corrected)
+    const float omega = freq / cutoffFreq;
+    const float A = std::pow(10.0f, gainDB / 40.0f); // Convert dB to linear amplitude
+    
+    // High shelf: gain at high frequencies, unity at low frequencies
+    if (omega >= 4.0f) // High frequencies
+    {
+        return gainDB; // Full gain
+    }
+    else if (omega <= 0.25f) // Low frequencies
+    {
+        return 0.0f; // Unity gain (0dB)
+    }
+    else // Transition region
+    {
+        const float logOmega = std::log2(omega);
+        const float sharpness = Q * 0.5f; // Q controls transition sharpness
+        const float transition = 0.5f * (1.0f + std::tanh(logOmega * sharpness));
+        return gainDB * transition;
+    }
+}
+
+float FrequencyResponseDisplay::calculateLowShelfResponse(float freq, float cutoffFreq, float gainDB, float Q) const
+{
+    if (std::abs(gainDB) < 0.01f) return 0.0f;
+    
+    // Manual low shelf calculation (corrected)
+    const float omega = freq / cutoffFreq;
+    const float A = std::pow(10.0f, gainDB / 40.0f); // Convert dB to linear amplitude
+    
+    // Low shelf: gain at low frequencies, unity at high frequencies
+    if (omega <= 0.25f) // Low frequencies
+    {
+        return gainDB; // Full gain
+    }
+    else if (omega >= 4.0f) // High frequencies
+    {
+        return 0.0f; // Unity gain (0dB)
+    }
+    else // Transition region
+    {
+        const float logOmega = std::log2(omega);
+        const float sharpness = Q * 0.5f; // Q controls transition sharpness
+        const float transition = 0.5f * (1.0f - std::tanh(logOmega * sharpness));
+        return gainDB * transition;
+    }
+}
+
+float FrequencyResponseDisplay::calculateHighPassResponse(float freq, float cutoffFreq, float Q) const
+{
+    // Proper 2nd order high-pass filter response
+    const float omega = freq / cutoffFreq;
+    const float omega2 = omega * omega;
+    
+    // Standard 2nd order high-pass transfer function: H(s) = s^2 / (s^2 + s/Q + 1)
+    // At s = jω, |H(jω)|^2 = ω^4 / (ω^4 + ω^2/Q^2 + 1)
+    const float numerator = omega2 * omega2;
+    const float denominator = numerator + (omega2 / (Q * Q)) + 1.0f;
+    
+    const float magnitude_squared = numerator / denominator;
+    
+    // Convert to dB
+    if (magnitude_squared > 1e-10f)
+        return 10.0f * std::log10(magnitude_squared);
+    else
+        return -100.0f; // Very low magnitude
+}
+
+float FrequencyResponseDisplay::calculateLowPassResponse(float freq, float cutoffFreq, float Q) const
+{
+    // Proper 2nd order low-pass filter response
+    const float omega = freq / cutoffFreq;
+    const float omega2 = omega * omega;
+    
+    // Standard 2nd order low-pass transfer function: H(s) = 1 / (s^2 + s/Q + 1)
+    // At s = jω, |H(jω)|^2 = 1 / (ω^4 + ω^2/Q^2 + 1)
+    const float denominator = omega2 * omega2 + (omega2 / (Q * Q)) + 1.0f;
+    
+    const float magnitude_squared = 1.0f / denominator;
+    
+    // Convert to dB
+    if (magnitude_squared > 1e-10f)
+        return 10.0f * std::log10(magnitude_squared);
+    else
+        return -100.0f; // Very low magnitude
 }

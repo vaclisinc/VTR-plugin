@@ -93,6 +93,7 @@ target_link_libraries(vaclis-DynamicEQ
         chowdsp_filters
         chowdsp_eq
         chowdsp_compressor
+        chowdsp_visualizers
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
