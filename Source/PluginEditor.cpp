@@ -670,7 +670,7 @@ void VaclisDynamicEQAudioProcessorEditor::paint (juce::Graphics& g)
     // Draw the plugin name and version
     g.setColour (juce::Colours::white);
     g.setFont (20.0f);
-    g.drawFittedText ("Dynamic EQ - Step 9: Pro-Q3 Draggable EQ Points", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
+    g.drawFittedText ("Dynamic EQ - Step 9: Draggable EQ Points", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
     
     g.setFont (12.0f);
     g.setColour (juce::Colours::lightgrey);

@@ -1,7 +1,7 @@
-# Step 9: Pro-Q3 Style Draggable EQ Interface - Requirements
+# Step 9: Draggable EQ Interface - Requirements
 
 ## Overview
-Enhance the existing FrequencyResponseDisplay component to include interactive, draggable EQ points similar to FabFilter Pro-Q3, providing professional workflow integration for audio engineers.
+Enhance the existing FrequencyResponseDisplay component to include interactive, draggable EQ points, providing professional workflow integration for audio engineers.
 
 ## Current System Analysis
 - ✅ FrequencyResponseDisplay component exists with spectrum analyzer
@@ -54,7 +54,7 @@ Enhance the existing FrequencyResponseDisplay component to include interactive, 
 - **Preserve current GUI layout** and functionality
 
 ### 3. User Experience
-- **Intuitive drag behavior** matching Pro-Q3 standards
+- **Intuitive drag behavior** matching professional standards
 - **Visual consistency** with existing plugin design
 - **Responsive feedback** for all interactions
 - **Accessibility** for different screen sizes
@@ -130,7 +130,7 @@ Enhance the existing FrequencyResponseDisplay component to include interactive, 
 *"As a mixing professional, I need visual feedback of my EQ curve combined with the spectrum analyzer so I can make informed decisions about frequency adjustments."*
 
 ### 3. Producer Workflow
-*"As a producer, I want the EQ interface to respond like Pro-Q3 so I can use familiar muscle memory and workflow patterns."*
+*"As a producer, I want the EQ interface to respond professionally so I can use familiar muscle memory and workflow patterns."*
 
 ## Risk Assessment
 

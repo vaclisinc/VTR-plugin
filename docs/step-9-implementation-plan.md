@@ -1,7 +1,7 @@
-# Step 9: Pro-Q3 Style Draggable EQ Interface - Implementation Plan
+# Step 9: Draggable EQ Interface - Implementation Plan
 
 ## Project Overview
-Enhance the existing FrequencyResponseDisplay component to add professional draggable EQ points similar to FabFilter Pro-Q3, providing intuitive visual EQ control for audio engineers.
+Enhance the existing FrequencyResponseDisplay component to add professional draggable EQ points, providing intuitive visual EQ control for audio engineers.
 
 ## Implementation Strategy
 
