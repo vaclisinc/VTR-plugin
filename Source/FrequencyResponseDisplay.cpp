@@ -1,10 +1,34 @@
 #include "FrequencyResponseDisplay.h"
+#include "PluginProcessor.h"
+#include "DSP/EQBand.h"
 
 FrequencyResponseDisplay::FrequencyResponseDisplay(SpectrumAnalyzer& analyzer)
-    : spectrumAnalyzer(analyzer)
+    : spectrumAnalyzer(analyzer), audioProcessor(nullptr)
 {
     // Start timer for 30Hz updates
     startTimer(static_cast<int>(1000.0f / UPDATE_RATE_HZ));
+    
+    // Initialize EQ points
+    for (int i = 0; i < 4; ++i) {
+        eqPoints[i].bandIndex = i;
+        eqPoints[i].isActive = true;
+    }
+}
+
+FrequencyResponseDisplay::FrequencyResponseDisplay(SpectrumAnalyzer& analyzer, VaclisDynamicEQAudioProcessor& processor)
+    : spectrumAnalyzer(analyzer), audioProcessor(&processor)
+{
+    // Start timer for 30Hz updates
+    startTimer(static_cast<int>(1000.0f / UPDATE_RATE_HZ));
+    
+    // Initialize EQ points
+    for (int i = 0; i < 4; ++i) {
+        eqPoints[i].bandIndex = i;
+        eqPoints[i].isActive = true;
+    }
+    
+    // Update EQ points from current parameters
+    updateEQPointsFromParameters();
 }
 
 void FrequencyResponseDisplay::paint(juce::Graphics& g)
@@ -42,6 +66,36 @@ void FrequencyResponseDisplay::paint(juce::Graphics& g)
         }
     }
     
+    // Draw EQ curve if enabled and processor available
+    if (showEQCurve && audioProcessor != nullptr)
+    {
+        g.setColour(eqCurveColour.withAlpha(0.8f));
+        g.strokePath(createEQCurvePath(), juce::PathStrokeType(2.0f));
+    }
+    
+    // Draw EQ points
+    for (int band = 0; band < 4; ++band)
+    {
+        auto& point = eqPoints[band];
+        if (point.isActive)
+        {
+            g.setColour(getBandColour(band));
+            
+            if (point.isHovered || draggingBandIndex == band)
+            {
+                // Draw highlighted point
+                g.fillEllipse(point.screenPosition.x - 6, point.screenPosition.y - 6, 12, 12);
+                g.setColour(juce::Colours::white);
+                g.drawEllipse(point.screenPosition.x - 6, point.screenPosition.y - 6, 12, 12, 1.5f);
+            }
+            else
+            {
+                // Draw normal point
+                g.fillEllipse(point.screenPosition.x - 4, point.screenPosition.y - 4, 8, 8);
+            }
+        }
+    }
+    
     // Draw title
     g.setColour(textColour);
     g.setFont(12.0f);
@@ -51,6 +105,12 @@ void FrequencyResponseDisplay::paint(juce::Graphics& g)
 void FrequencyResponseDisplay::resized()
 {
     // Component resized, paths will be recreated on next paint
+    
+    // Update EQ point screen positions after resize
+    if (audioProcessor != nullptr)
+    {
+        updateEQPointScreenPositions();
+    }
 }
 
 void FrequencyResponseDisplay::setDisplayMode(DisplayMode mode)
@@ -68,6 +128,12 @@ void FrequencyResponseDisplay::setSpectrumVisible(bool visible)
 void FrequencyResponseDisplay::timerCallback()
 {
     updateSpectrumData();
+    
+    // Update EQ points from parameters if processor is available
+    if (audioProcessor != nullptr)
+    {
+        updateEQPointsFromParameters();
+    }
 }
 
 void FrequencyResponseDisplay::updateSpectrumData()
@@ -217,4 +283,316 @@ float FrequencyResponseDisplay::magnitudeToY(float magnitudeDB) const
     const float normalizedMagnitude = (magnitudeDB - MIN_MAGNITUDE_DB) / (MAX_MAGNITUDE_DB - MIN_MAGNITUDE_DB);
     
     return bounds * (1.0f - normalizedMagnitude); // Invert Y axis
+}
+
+// Mouse interaction methods
+void FrequencyResponseDisplay::mouseDown(const juce::MouseEvent& event)
+{
+    auto position = event.position;
+    int nearestPoint = findNearestEQPoint(position);
+    
+    if (nearestPoint != -1 && getDistanceToPoint(position, nearestPoint) < 12.0f)
+    {
+        draggingBandIndex = nearestPoint;
+        isDragging = true;
+        dragStartPosition = position;
+        setMouseCursor(juce::MouseCursor::DraggingHandCursor);
+    }
+}
+
+void FrequencyResponseDisplay::mouseDrag(const juce::MouseEvent& event)
+{
+    if (isDragging && draggingBandIndex != -1)
+    {
+        updateEQPointPosition(draggingBandIndex, event.position);
+        updateParameterFromEQPoint(draggingBandIndex);
+        invalidateResponseCache();
+        repaint();
+    }
+}
+
+void FrequencyResponseDisplay::mouseUp(const juce::MouseEvent& event)
+{
+    if (isDragging)
+    {
+        isDragging = false;
+        draggingBandIndex = -1;
+        setMouseCursor(juce::MouseCursor::NormalCursor);
+    }
+}
+
+void FrequencyResponseDisplay::mouseMove(const juce::MouseEvent& event)
+{
+    bool repaintNeeded = false;
+    
+    // Check hover state for all points
+    for (int i = 0; i < 4; ++i)
+    {
+        bool wasHovered = eqPoints[i].isHovered;
+        eqPoints[i].isHovered = (getDistanceToPoint(event.position, i) < 12.0f);
+        
+        if (wasHovered != eqPoints[i].isHovered)
+            repaintNeeded = true;
+    }
+    
+    if (repaintNeeded)
+        repaint();
+}
+
+int FrequencyResponseDisplay::findNearestEQPoint(juce::Point<float> position)
+{
+    float minDistance = std::numeric_limits<float>::max();
+    int nearestPoint = -1;
+    
+    for (int i = 0; i < 4; ++i)
+    {
+        if (eqPoints[i].isActive)
+        {
+            float distance = getDistanceToPoint(position, i);
+            if (distance < minDistance)
+            {
+                minDistance = distance;
+                nearestPoint = i;
+            }
+        }
+    }
+    
+    return nearestPoint;
+}
+
+void FrequencyResponseDisplay::updateEQPointPosition(int bandIndex, juce::Point<float> position)
+{
+    if (bandIndex >= 0 && bandIndex < 4)
+    {
+        eqPoints[bandIndex].screenPosition = position;
+        
+        // Convert screen position to parameter values
+        eqPoints[bandIndex].frequency = xToFrequency(position.x);
+        eqPoints[bandIndex].gainDB = yToGainDB(position.y);
+        
+        // Clamp values to valid ranges
+        eqPoints[bandIndex].frequency = juce::jlimit(20.0f, 20000.0f, eqPoints[bandIndex].frequency);
+        eqPoints[bandIndex].gainDB = juce::jlimit(-30.0f, 30.0f, eqPoints[bandIndex].gainDB);
+    }
+}
+
+void FrequencyResponseDisplay::updateParameterFromEQPoint(int bandIndex)
+{
+    if (audioProcessor == nullptr || bandIndex < 0 || bandIndex >= 4)
+        return;
+        
+    auto& point = eqPoints[bandIndex];
+    
+    // Update frequency parameter
+    juce::String freqParamID = "eq_freq_band" + juce::String(bandIndex);
+    if (auto* freqParam = audioProcessor->getValueTreeState().getParameter(freqParamID))
+    {
+        float normalizedFreq = std::log10(point.frequency / 20.0f) / std::log10(20000.0f / 20.0f);
+        freqParam->setValueNotifyingHost(normalizedFreq);
+    }
+    
+    // Update gain parameter
+    juce::String gainParamID = "eq_gain_band" + juce::String(bandIndex);
+    if (auto* gainParam = audioProcessor->getValueTreeState().getParameter(gainParamID))
+    {
+        float normalizedGain = (point.gainDB + 30.0f) / 60.0f;
+        gainParam->setValueNotifyingHost(normalizedGain);
+    }
+}
+
+void FrequencyResponseDisplay::updateEQPointsFromParameters()
+{
+    if (audioProcessor == nullptr)
+        return;
+        
+    for (int i = 0; i < 4; ++i)
+    {
+        // Get frequency parameter
+        juce::String freqParamID = "eq_freq_band" + juce::String(i);
+        if (auto* freqParam = audioProcessor->getValueTreeState().getParameter(freqParamID))
+        {
+            float normalizedFreq = freqParam->getValue();
+            eqPoints[i].frequency = 20.0f * std::pow(20000.0f / 20.0f, normalizedFreq);
+        }
+        else
+        {
+            // Set default frequency if parameter not found
+            const float defaultFreqs[4] = {100.0f, 500.0f, 2000.0f, 8000.0f};
+            eqPoints[i].frequency = defaultFreqs[i];
+        }
+        
+        // Get gain parameter
+        juce::String gainParamID = "eq_gain_band" + juce::String(i);
+        if (auto* gainParam = audioProcessor->getValueTreeState().getParameter(gainParamID))
+        {
+            float normalizedGain = gainParam->getValue();
+            eqPoints[i].gainDB = (normalizedGain * 60.0f) - 30.0f;
+        }
+        else
+        {
+            // Set default gain if parameter not found
+            eqPoints[i].gainDB = 0.0f;
+        }
+        
+        // Get Q parameter
+        juce::String qParamID = "eq_q_band" + juce::String(i);
+        if (auto* qParam = audioProcessor->getValueTreeState().getParameter(qParamID))
+        {
+            float normalizedQ = qParam->getValue();
+            eqPoints[i].Q = 0.1f + (normalizedQ * 9.9f); // 0.1 to 10.0
+        }
+        else
+        {
+            // Set default Q if parameter not found
+            eqPoints[i].Q = 1.0f;
+        }
+        
+        // Update screen position
+        eqPoints[i].screenPosition.x = frequencyToX(eqPoints[i].frequency);
+        eqPoints[i].screenPosition.y = magnitudeToY(eqPoints[i].gainDB);
+        
+        // Ensure point is marked as active
+        eqPoints[i].isActive = true;
+    }
+}
+
+float FrequencyResponseDisplay::getDistanceToPoint(juce::Point<float> position, int bandIndex)
+{
+    if (bandIndex < 0 || bandIndex >= 4)
+        return std::numeric_limits<float>::max();
+        
+    return position.getDistanceFrom(eqPoints[bandIndex].screenPosition);
+}
+
+// EQ curve calculation methods
+juce::Path FrequencyResponseDisplay::createEQCurvePath()
+{
+    juce::Path curvePath;
+    
+    if (audioProcessor == nullptr)
+        return curvePath;
+    
+    auto combinedResponse = calculateCombinedEQResponse(512);
+    
+    if (combinedResponse.empty())
+        return curvePath;
+    
+    // Create smooth curve path
+    curvePath.startNewSubPath(0, magnitudeToY(combinedResponse[0]));
+    
+    for (size_t i = 1; i < combinedResponse.size(); ++i)
+    {
+        float x = (float)i / (combinedResponse.size() - 1) * getWidth();
+        float y = magnitudeToY(combinedResponse[i]);
+        curvePath.lineTo(x, y);
+    }
+    
+    return curvePath;
+}
+
+std::vector<float> FrequencyResponseDisplay::calculateBandResponse(int bandIndex, int numPoints)
+{
+    std::vector<float> response(numPoints, 0.0f);
+    
+    if (audioProcessor == nullptr || bandIndex < 0 || bandIndex >= 4)
+        return response;
+    
+    // Get current band parameters
+    auto& point = eqPoints[bandIndex];
+    
+    // Calculate response for each frequency point
+    for (int i = 0; i < numPoints; ++i)
+    {
+        float freq = MIN_FREQUENCY * std::pow(MAX_FREQUENCY / MIN_FREQUENCY, (float)i / (numPoints - 1));
+        
+        // Simple bell filter response calculation
+        float omega = 2.0f * juce::MathConstants<float>::pi * freq / 48000.0f; // Assume 48kHz
+        float centerOmega = 2.0f * juce::MathConstants<float>::pi * point.frequency / 48000.0f;
+        
+        // Bell filter frequency response approximation
+        float deltaOmega = omega - centerOmega;
+        float magnitude = point.gainDB / (1.0f + std::pow(deltaOmega * point.Q, 2.0f));
+        
+        response[i] = magnitude;
+    }
+    
+    return response;
+}
+
+std::vector<float> FrequencyResponseDisplay::calculateCombinedEQResponse(int numPoints)
+{
+    std::vector<float> combinedResponse(numPoints, 0.0f);
+    
+    if (audioProcessor == nullptr)
+        return combinedResponse;
+    
+    // Check if we can use cached response
+    if (responseCacheValid && cachedCombinedResponse.size() == numPoints)
+        return cachedCombinedResponse;
+    
+    // Calculate combined response by summing all active bands
+    for (int band = 0; band < 4; ++band)
+    {
+        if (eqPoints[band].isActive)
+        {
+            auto bandResponse = calculateBandResponse(band, numPoints);
+            for (int i = 0; i < numPoints; ++i)
+            {
+                combinedResponse[i] += bandResponse[i];
+            }
+        }
+    }
+    
+    // Cache the result
+    cachedCombinedResponse = combinedResponse;
+    responseCacheValid = true;
+    
+    return combinedResponse;
+}
+
+// Coordinate conversion helpers
+float FrequencyResponseDisplay::xToFrequency(float x) const
+{
+    const float bounds = static_cast<float>(getLocalBounds().getWidth());
+    const float normalizedX = x / bounds;
+    const float logMin = std::log10(MIN_FREQUENCY);
+    const float logMax = std::log10(MAX_FREQUENCY);
+    
+    return std::pow(10.0f, logMin + normalizedX * (logMax - logMin));
+}
+
+float FrequencyResponseDisplay::yToGainDB(float y) const
+{
+    const float bounds = static_cast<float>(getLocalBounds().getHeight());
+    const float normalizedY = 1.0f - (y / bounds); // Invert Y axis
+    
+    return MIN_MAGNITUDE_DB + normalizedY * (MAX_MAGNITUDE_DB - MIN_MAGNITUDE_DB);
+}
+
+// Band color helper
+juce::Colour FrequencyResponseDisplay::getBandColour(int bandIndex) const
+{
+    const juce::Colour bandColours[4] = {
+        juce::Colour(0xff4a9eff),  // LOW - Blue
+        juce::Colour(0xff4aff9e),  // LOW-MID - Green
+        juce::Colour(0xffff9e4a),  // HIGH-MID - Orange
+        juce::Colour(0xffff4a4a)   // HIGH - Red
+    };
+    
+    return (bandIndex >= 0 && bandIndex < 4) ? bandColours[bandIndex] : juce::Colours::white;
+}
+
+// Cache management
+void FrequencyResponseDisplay::invalidateResponseCache()
+{
+    responseCacheValid = false;
+}
+
+void FrequencyResponseDisplay::updateEQPointScreenPositions()
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        eqPoints[i].screenPosition.x = frequencyToX(eqPoints[i].frequency);
+        eqPoints[i].screenPosition.y = magnitudeToY(eqPoints[i].gainDB);
+    }
 }

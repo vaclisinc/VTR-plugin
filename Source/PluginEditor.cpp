@@ -568,7 +568,7 @@ VaclisDynamicEQAudioProcessorEditor::VaclisDynamicEQAudioProcessorEditor (Vaclis
     setupBandComponents();
     
     // Setup frequency response display (dedicated area)
-    frequencyResponseDisplay = std::make_unique<FrequencyResponseDisplay>(audioProcessor.getSpectrumAnalyzer());
+    frequencyResponseDisplay = std::make_unique<FrequencyResponseDisplay>(audioProcessor.getSpectrumAnalyzer(), audioProcessor);
     frequencyResponseDisplay->setDisplayMode(FrequencyResponseDisplay::DisplayMode::Both);
     frequencyResponseDisplay->setSpectrumVisible(true); // Start visible
     addAndMakeVisible(*frequencyResponseDisplay);
@@ -670,7 +670,7 @@ void VaclisDynamicEQAudioProcessorEditor::paint (juce::Graphics& g)
     // Draw the plugin name and version
     g.setColour (juce::Colours::white);
     g.setFont (20.0f);
-    g.drawFittedText ("Dynamic EQ - Step 8: Frequency Response View", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
+    g.drawFittedText ("Dynamic EQ - Step 9: Pro-Q3 Draggable EQ Points", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
     
     g.setFont (12.0f);
     g.setColour (juce::Colours::lightgrey);
