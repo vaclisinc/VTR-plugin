@@ -16,7 +16,7 @@ public:
         std::cout << "Running Pink Noise Processing Test..." << std::endl;
         
         // Create plugin instance
-        VTRsmartEQAudioProcessor processor;
+        VaclisDynamicEQAudioProcessor processor;
         
         // Audio setup
         const double sampleRate = 48000.0;
@@ -92,7 +92,7 @@ private:
     }
     
     std::vector<float> processAudioThroughPlugin(
-        VTRsmartEQAudioProcessor& processor,
+        VaclisDynamicEQAudioProcessor& processor,
         const std::vector<float>& inputData,
         double sampleRate,
         int bufferSize,

@@ -103,18 +103,18 @@
   - **workflow**: File upload → Background processing → Feature extraction → NN inference → Update EQ parameters
   - done_when: Reference audio processing runs without blocking UI thread
 
-- [ ] **VTR13**: Connect feature extraction to neural network
+- [x] **VTR13**: Connect feature extraction to neural network
   - objective: Complete pipeline: Audio → Features → Normalization → NN → EQ parameters
   - implementation: Feature vector extraction → StandardScaler → MLP inference
   - done_when: Audio analysis produces 5 EQ parameter predictions
 
-- [ ] **VTR14**: Integrate NN output with existing EQ parameter system
+- [x] **VTR14**: Integrate NN output with existing EQ parameter system
   - objective: Apply NN predictions to existing ParameterManager
   - current_state: ParameterManager handles smoothing and thread-safe updates
   - implementation: Convert NN output to parameter values, apply through existing system
   - done_when: NN predictions automatically adjust EQ band parameters
 
-- [ ] **VTR15**: Add VTR GUI components
+- [x] **VTR15**: Add VTR GUI components
   - objective: Create user interface for VTR functionality
   - implementation:
     - "Load Reference Audio" button
@@ -124,7 +124,7 @@
     - Status display (file loaded, processing, completed)
   - done_when: Users can interact with VTR functionality through GUI
 
-- [ ] **VTR16**: Add reference audio file loading and processing
+- [x] **VTR16**: Add reference audio file loading and processing
   - objective: Allow users to upload reference audio files for tone matching
   - implementation: 
     - File browser/drag-drop interface for audio files
@@ -135,17 +135,17 @@
 
 ### Phase 5: Testing & Validation
 
-- [ ] **VTR17**: Validate feature extraction accuracy
+- [x] **VTR17**: Validate feature extraction accuracy
   - objective: Ensure C++ features match Python librosa reference
   - tests: Process identical audio through both implementations
   - acceptance: All 17 features match librosa within 1% tolerance
 
-- [ ] **VTR18**: Validate neural network inference
+- [x] **VTR18**: Validate neural network inference
   - objective: Ensure C++ inference matches PyTorch reference
   - tests: Process identical feature vectors through both implementations  
   - acceptance: C++ inference matches PyTorch within 0.1% tolerance
 
-- [ ] **VTR19**: End-to-end integration testing
+- [x] **VTR19**: End-to-end integration testing
   - objective: Verify complete VTR workflow functions correctly
   - tests: Upload reference audio → feature extraction → normalization → NN → EQ application
   - acceptance: Plugin successfully matches reference tones through GUI workflow

@@ -230,3 +230,47 @@ target_link_libraries(test_vtr_network PRIVATE
     juce::juce_data_structures
 )
 target_include_directories(test_vtr_network PRIVATE Source)
+
+# VTR17 Feature validation test
+add_executable(test_vtr17_feature_validation 
+    tests/test_vtr17_feature_validation.cpp 
+    Source/SpectrumAnalyzer.cpp
+    Source/VTR/VTRNetwork.cpp
+)
+target_compile_features(test_vtr17_feature_validation PRIVATE cxx_std_17)
+target_link_libraries(test_vtr17_feature_validation PRIVATE
+    juce::juce_audio_basics
+    juce::juce_audio_processors
+    juce::juce_core
+    juce::juce_dsp
+    juce::juce_data_structures
+)
+target_include_directories(test_vtr17_feature_validation PRIVATE Source)
+
+# VTR18 Network validation test
+add_executable(test_vtr18_network_validation 
+    tests/test_vtr18_network_validation.cpp 
+    Source/VTR/VTRNetwork.cpp
+)
+target_compile_features(test_vtr18_network_validation PRIVATE cxx_std_17)
+target_link_libraries(test_vtr18_network_validation PRIVATE
+    juce::juce_audio_basics
+    juce::juce_audio_processors
+    juce::juce_core
+    juce::juce_dsp
+    juce::juce_data_structures
+)
+target_include_directories(test_vtr18_network_validation PRIVATE Source)
+
+# VTR19 End-to-end integration test (simplified)
+add_executable(test_vtr19_end_to_end 
+    tests/test_vtr19_end_to_end_simple.cpp 
+    Source/VTR/VTRNetwork.cpp
+)
+target_compile_features(test_vtr19_end_to_end PRIVATE cxx_std_17)
+target_link_libraries(test_vtr19_end_to_end PRIVATE
+    juce::juce_audio_basics
+    juce::juce_core
+    juce::juce_data_structures
+)
+target_include_directories(test_vtr19_end_to_end PRIVATE Source)

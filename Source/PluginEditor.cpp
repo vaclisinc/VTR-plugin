@@ -866,8 +866,8 @@ void VaclisDynamicEQAudioProcessorEditor::loadReferenceAudio()
             vtrProgressBar->setVisible(true);
             // vtrProgressBar.setPercentageDisplay(true); // Not available in JUCE ProgressBar
             
-            // Start VTR processing - using file path for now
-            juce::Logger::writeToLog("VTR: Reference file loaded: " + selectedFile.getFullPathName());
+            // Start VTR processing
+            audioProcessor.processReferenceAudioFile(selectedFile);
             
             // Enable apply button
             applyVTRButton.setEnabled(true);
