@@ -1,6 +1,6 @@
 # vaclis-DynamicEQ Plugin 🎛️
 
-A professional 4-band dynamic EQ plugin built with JUCE framework, featuring real-time spectrum analysis, advanced visualization, and professional-grade audio processing.
+A professional 4-band dynamic EQ plugin with **interactive frequency response visualization**. Built with JUCE framework, featuring real-time spectrum analysis, draggable EQ points that follow the actual combined curve, and professional-grade audio processing.
 
 ## 🚀 Features
 
@@ -13,15 +13,18 @@ A professional 4-band dynamic EQ plugin built with JUCE framework, featuring rea
 
 ### Advanced Visualization
 - **Real-time Spectrum Analyzer**: 2048-point FFT with 30Hz update rate
-- **Frequency Response Display**: Live EQ curve visualization
+- **Interactive EQ Curve**: Draggable frequency response with real-time updates
+- **Smart Point Tracking**: EQ points follow the actual combined frequency response
 - **Level Meters**: Professional input/output meters with peak hold
 - **Band-specific Controls**: Color-coded interface for intuitive operation
 
 ### Professional GUI
+- **Interactive EQ Display**: Drag points to adjust frequency and gain in real-time
+- **Synchronized Controls**: Sliders and visual display update together automatically
 - **Resizable Interface**: Optimized 730px height layout
 - **Rotary Controls**: Professional 65px rotary sliders
 - **Toggle Buttons**: Enable/Solo/Dynamics/Spectrum/Sidechain controls
-- **Collapsible Interface**: Organized layout with logical grouping
+- **Real-time Visual Feedback**: Immediate response to all parameter changes
 
 ## 📥 Installation
 
@@ -73,7 +76,7 @@ cmake --install build
    - Load "vaclis-DynamicEQ" from your plugin list
 
 2. **Understanding the Interface**
-   - **Top Section**: Frequency response display shows your EQ curve
+   - **Top Section**: Interactive frequency response display - click and drag points to adjust EQ
    - **Middle Section**: Real-time spectrum analyzer (toggle with SPEC button)
    - **Bottom Sections**: 4 bands of EQ and dynamics controls
    - **Side Panels**: Input/output level meters
@@ -104,12 +107,14 @@ cmake --install build
 
 ### Typical Workflow
 
-1. **Set up your EQ curve** using the frequency response display
-2. **Enable dynamics** on bands that need compression
-3. **Adjust thresholds** to set when compression kicks in
-4. **Fine-tune ratios** for desired compression amount
-5. **Use the spectrum analyzer** to visualize your changes
-6. **Enable sidechain** if you want frequency-specific ducking
+1. **Set up your EQ curve** by dragging points in the frequency response display or using sliders
+2. **Watch points follow the curve** as filters interact with each other
+3. **Enable dynamics** on bands that need compression
+4. **Adjust thresholds** to set when compression kicks in
+5. **Fine-tune ratios** for desired compression amount
+6. **Use the spectrum analyzer** to visualize your changes in real-time
+7. **Toggle EN buttons** to hear the effect of individual bands
+8. **Enable sidechain** if you want frequency-specific ducking
 
 ## 🔧 Technical Specifications
 
@@ -175,10 +180,9 @@ This project showcases professional plugin development practices:
 
 ## 📄 License
 
-This project is licensed under the **Beer-Ware License** (Revision 42) 🍺
+This project is licensed under the **MIT License**.
 
-> As long as you retain this notice you can do whatever you want with this stuff. 
-> If we meet some day, and you think this stuff is worth it, you can buy me a beer in return.
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software.
 
 See LICENSE file for the full license text.
 
