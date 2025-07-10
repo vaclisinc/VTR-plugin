@@ -102,3 +102,18 @@ target_link_libraries(VTR-smartEQ
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
 )
+
+# Test executables
+add_executable(test_vtr3_feature_extraction 
+    tests/test_vtr3_feature_extraction.cpp 
+    Source/SpectrumAnalyzer.cpp
+)
+target_compile_features(test_vtr3_feature_extraction PRIVATE cxx_std_17)
+target_link_libraries(test_vtr3_feature_extraction PRIVATE
+    juce::juce_audio_basics
+    juce::juce_audio_processors
+    juce::juce_core
+    juce::juce_dsp
+    juce::juce_data_structures
+)
+target_include_directories(test_vtr3_feature_extraction PRIVATE Source)

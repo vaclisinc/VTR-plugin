@@ -17,6 +17,14 @@ public:
     std::vector<float> getInputSpectrum() const;
     std::vector<float> getOutputSpectrum() const;
     
+    // VTR3 Feature extraction methods
+    std::vector<float> extractFeatures(const std::vector<float>& audioData, double sampleRate);
+    std::vector<float> extractMFCC(const std::vector<float>& powerSpectrum, double sampleRate);
+    float extractSpectralCentroid(const std::vector<float>& powerSpectrum, double sampleRate);
+    float extractRMSEnergy(const std::vector<float>& audioData);
+    std::vector<float> computeMelFilterbank(const std::vector<float>& powerSpectrum, double sampleRate);
+    std::vector<float> computeDCT(const std::vector<float>& melEnergies);
+    
     // Public access to sample rate for frequency calculations
     double getSampleRate() const { return sampleRate; }
     
@@ -26,10 +34,20 @@ public:
     static constexpr float UPDATE_RATE_HZ = 30.0f;
     static constexpr float PEAK_HOLD_TIME_SECONDS = 2.0f;
     
+    // VTR3 Feature extraction constants
+    static constexpr int NUM_MEL_FILTERS = 26;
+    static constexpr int NUM_MFCC_COEFFS = 13;
+    static constexpr int TOTAL_FEATURES = 17; // 13 MFCC + 1 spectral centroid + 1 RMS + 2 additional
+    
 private:
     void performFFT(const juce::AudioBuffer<float>& buffer, std::vector<float>& spectrumData);
     void applyHannWindow(std::vector<float>& data);
     void updatePeakHold(std::vector<float>& spectrum, std::vector<float>& peakHold);
+    
+    // VTR3 Helper methods
+    float melScale(float frequency);
+    float invMelScale(float mel);
+    std::vector<float> computePowerSpectrum(const std::vector<float>& audioData);
     
     // FFT processing
     juce::dsp::FFT fft;
