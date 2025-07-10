@@ -15,13 +15,13 @@
 
 ### Phase 1: EQ Extension for VTR
 
-- [ ] **VTR1**: Expand EQ from 4 to 5 bands
+- [x] **VTR1**: Expand EQ from 4 to 5 bands
   - objective: Add 5th band to existing MultiBandEQ for VTR integration
   - current_state: EQBand.h shows CURRENT_BANDS = 4, MAX_BANDS = 8 (ready for expansion)
   - implementation: Change CURRENT_BANDS to 5, add parameters for 5th band
   - done_when: Plugin builds with 5 bands, parameters accessible
 
-- [ ] **VTR2**: Configure VTR target frequencies
+- [x] **VTR2**: Configure VTR target frequencies
   - objective: Set band frequencies to VTR targets: 80Hz, 240Hz, 2.5kHz, 4kHz, 10kHz
   - current_state: Existing bands have configurable frequencies
   - implementation: Set default frequencies to VTR targets, use Bell filter type
