@@ -213,3 +213,18 @@ target_link_libraries(test_feature_storage PRIVATE
     juce::juce_data_structures
 )
 target_include_directories(test_feature_storage PRIVATE Source)
+
+# VTR Network test
+add_executable(test_vtr_network 
+    tests/test_vtr_network.cpp 
+    Source/VTR/VTRNetwork.cpp
+)
+target_compile_features(test_vtr_network PRIVATE cxx_std_17)
+target_link_libraries(test_vtr_network PRIVATE
+    juce::juce_audio_basics
+    juce::juce_audio_processors
+    juce::juce_core
+    juce::juce_dsp
+    juce::juce_data_structures
+)
+target_include_directories(test_vtr_network PRIVATE Source)
