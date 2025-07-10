@@ -458,7 +458,7 @@ void FrequencyResponseDisplay::updateEQPointPosition(int bandIndex, juce::Point<
 
 void FrequencyResponseDisplay::updateParameterFromEQPoint(int bandIndex)
 {
-    if (audioProcessor == nullptr || bandIndex < 0 || bandIndex >= 4)
+    if (audioProcessor == nullptr || bandIndex < 0 || bandIndex >= 5)
         return;
         
     auto& point = eqPoints[bandIndex];
@@ -539,7 +539,7 @@ void FrequencyResponseDisplay::updateEQPointsFromParameters()
 
 float FrequencyResponseDisplay::getDistanceToPoint(juce::Point<float> position, int bandIndex)
 {
-    if (bandIndex < 0 || bandIndex >= 4)
+    if (bandIndex < 0 || bandIndex >= 5)
         return std::numeric_limits<float>::max();
         
     return position.getDistanceFrom(eqPoints[bandIndex].screenPosition);
@@ -575,7 +575,7 @@ std::vector<float> FrequencyResponseDisplay::calculateBandResponse(int bandIndex
 {
     std::vector<float> response(numPoints, 0.0f);
     
-    if (audioProcessor == nullptr || bandIndex < 0 || bandIndex >= 4)
+    if (audioProcessor == nullptr || bandIndex < 0 || bandIndex >= 5)
         return response;
         
     // Check if band is enabled
