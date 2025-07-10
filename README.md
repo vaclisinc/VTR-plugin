@@ -36,6 +36,11 @@ A professional 4-band dynamic EQ plugin with **interactive frequency response vi
    - **macOS VST3**: `~/Library/Audio/Plug-Ins/VST3/`
    - **Windows VST3**: `C:\Program Files\Common Files\VST3\`
 
+#### macOS Security Note
+If you get a "malicious software" warning on macOS, you can solve by:
+1. **System Preferences**: System Preferences → Security & Privacy → Allow the blocked plugin  
+2. **Terminal command**: `sudo xattr -rd com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/vaclis-DynamicEQ.vst3` / `sudo xattr -rd com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/vaclis-DynamicEQ.component`
+
 ### Option 2: Build from Source
 
 #### Prerequisites
