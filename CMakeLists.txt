@@ -59,6 +59,8 @@ target_sources(VTR-smartEQ
         Source/FrequencyResponseDisplay.h
         Source/LevelMeter.cpp
         Source/LevelMeter.h
+        Source/VTR/VTRNetwork.cpp
+        Source/VTR/VTRNetwork.h
 )
 
 # Compile definitions

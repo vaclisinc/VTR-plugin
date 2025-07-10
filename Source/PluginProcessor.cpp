@@ -80,6 +80,9 @@ VaclisDynamicEQAudioProcessor::VaclisDynamicEQAudioProcessor()
         }
     }
     
+    // Initialize VTR system
+    vtrThreadPool = std::make_unique<juce::ThreadPool>(1); // Single thread for VTR processing
+    
     // Parameter system initialized successfully
 }
 
@@ -641,6 +644,155 @@ void VaclisDynamicEQAudioProcessor::setStateInformation (const void* data, int s
     if (xmlState.get() != nullptr)
         if (xmlState->hasTagName (parameters.state.getType()))
             parameters.replaceState (juce::ValueTree::fromXml (*xmlState));
+}
+
+// VTR Implementation
+bool VaclisDynamicEQAudioProcessor::loadVTRModel(const juce::String& modelPath, const juce::String& scalerPath)
+{
+    return vtrNetwork.loadModel(modelPath.toStdString(), scalerPath.toStdString());
+}
+
+void VaclisDynamicEQAudioProcessor::processReferenceAudioFile(const juce::File& audioFile)
+{
+    if (vtrProcessing.load())
+    {
+        juce::Logger::writeToLog("VTR processing already in progress");
+        return;
+    }
+    
+    // Create a job to process the audio file in the background
+    class VTRProcessingJob : public juce::ThreadPoolJob
+    {
+    public:
+        VTRProcessingJob(VaclisDynamicEQAudioProcessor* processor, juce::File file)
+            : ThreadPoolJob("VTR Processing"), processor_(processor), audioFile_(file)
+        {
+        }
+        
+        JobStatus runJob() override
+        {
+            processor_->vtrProcessing.store(true);
+            
+            try
+            {
+                // Load the audio file
+                juce::AudioFormatManager formatManager;
+                formatManager.registerBasicFormats();
+                
+                std::unique_ptr<juce::AudioFormatReader> reader(formatManager.createReaderFor(audioFile_));
+                
+                if (reader == nullptr)
+                {
+                    juce::Logger::writeToLog("Failed to load audio file: " + audioFile_.getFullPathName());
+                    processor_->vtrProcessing.store(false);
+                    return jobHasFinished;
+                }
+                
+                // Read the audio data
+                juce::AudioBuffer<float> audioBuffer(1, (int)reader->lengthInSamples);
+                reader->read(&audioBuffer, 0, (int)reader->lengthInSamples, 0, true, false);
+                
+                // Resample to 44.1kHz if needed
+                double sampleRate = reader->sampleRate;
+                if (sampleRate != 44100.0)
+                {
+                    // Simple resampling for now - could be improved with better interpolation
+                    int newLength = (int)((audioBuffer.getNumSamples() * 44100.0) / sampleRate);
+                    juce::AudioBuffer<float> resampledBuffer(1, newLength);
+                    
+                    for (int i = 0; i < newLength; ++i)
+                    {
+                        float sourceIndex = (float)i * sampleRate / 44100.0f;
+                        int index = (int)sourceIndex;
+                        if (index < audioBuffer.getNumSamples())
+                        {
+                            resampledBuffer.setSample(0, i, audioBuffer.getSample(0, index));
+                        }
+                    }
+                    
+                    audioBuffer = std::move(resampledBuffer);
+                    sampleRate = 44100.0;
+                }
+                
+                // Convert to vector for feature extraction
+                std::vector<float> audioData;
+                audioData.resize(audioBuffer.getNumSamples());
+                for (int i = 0; i < audioBuffer.getNumSamples(); ++i)
+                {
+                    audioData[i] = audioBuffer.getSample(0, i);
+                }
+                
+                // Extract features using SpectrumAnalyzer
+                auto features = processor_->spectrumAnalyzer.extractFeatures(audioData, sampleRate);
+                
+                // Run VTR prediction
+                auto predictions = processor_->vtrNetwork.predict(features);
+                
+                // Apply predictions to EQ parameters
+                processor_->applyVTRPredictions(predictions);
+                
+                juce::Logger::writeToLog("VTR processing completed successfully");
+            }
+            catch (const std::exception& e)
+            {
+                juce::Logger::writeToLog("VTR processing failed: " + juce::String(e.what()));
+            }
+            
+            processor_->vtrProcessing.store(false);
+            return jobHasFinished;
+        }
+        
+    private:
+        VaclisDynamicEQAudioProcessor* processor_;
+        juce::File audioFile_;
+    };
+    
+    // Submit the job to the thread pool
+    vtrThreadPool->addJob(new VTRProcessingJob(this, audioFile), true);
+}
+
+void VaclisDynamicEQAudioProcessor::applyVTRPredictions(const std::vector<float>& predictions)
+{
+    if (predictions.size() != 5)
+    {
+        juce::Logger::writeToLog("VTR predictions size mismatch: expected 5, got " + juce::String(predictions.size()));
+        return;
+    }
+    
+    // Apply predictions to the 5 EQ bands
+    // VTR targets: 80Hz, 240Hz, 2.5kHz, 4kHz, 10kHz
+    const std::vector<float> targetFreqs = {80.0f, 240.0f, 2500.0f, 4000.0f, 10000.0f};
+    
+    for (int band = 0; band < 5; ++band)
+    {
+        // Set the gain for this band
+        if (auto* gainParam = parameters.getParameter("eq_gain_band" + juce::String(band)))
+        {
+            // Clamp predictions to reasonable range (-20dB to +20dB)
+            float clampedGain = juce::jlimit(-20.0f, 20.0f, predictions[band]);
+            gainParam->setValueNotifyingHost(gainParam->convertTo0to1(clampedGain));
+        }
+        
+        // Set the frequency to VTR target
+        if (auto* freqParam = parameters.getParameter("eq_freq_band" + juce::String(band)))
+        {
+            freqParam->setValueNotifyingHost(freqParam->convertTo0to1(targetFreqs[band]));
+        }
+        
+        // Set Q to a reasonable value for tone matching
+        if (auto* qParam = parameters.getParameter("eq_q_band" + juce::String(band)))
+        {
+            qParam->setValueNotifyingHost(qParam->convertTo0to1(1.0f)); // Q = 1.0
+        }
+        
+        // Set filter type to Bell
+        if (auto* typeParam = parameters.getParameter("eq_type_band" + juce::String(band)))
+        {
+            typeParam->setValueNotifyingHost(typeParam->convertTo0to1(1.0f)); // Bell filter
+        }
+    }
+    
+    juce::Logger::writeToLog("VTR predictions applied to EQ parameters");
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

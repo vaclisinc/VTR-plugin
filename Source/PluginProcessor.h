@@ -8,6 +8,7 @@
 #include "DSP/EQBand.h"
 #include "DSP/GainProcessor.h"
 #include "SpectrumAnalyzer.h"
+#include "VTR/VTRNetwork.h"
 
 class VaclisDynamicEQAudioProcessor  : public juce::AudioProcessor
 {
@@ -45,6 +46,12 @@ public:
 
     juce::AudioProcessorValueTreeState& getValueTreeState() { return parameters; }
     SpectrumAnalyzer& getSpectrumAnalyzer() { return spectrumAnalyzer; }
+    
+    // VTR functionality
+    VTRNetwork& getVTRNetwork() { return vtrNetwork; }
+    bool loadVTRModel(const juce::String& modelPath, const juce::String& scalerPath);
+    void processReferenceAudioFile(const juce::File& audioFile);
+    bool isVTRProcessing() const { return vtrProcessing.load(); }
     
     // Level metering
     float getInputLevel() const { return inputLevel.load(); }
@@ -123,6 +130,11 @@ private:
     DynamicEQ::GainProcessor outputGain;
     DynamicEQ::MultiBandEQ multiBandEQ;
     SpectrumAnalyzer spectrumAnalyzer;
+    VTRNetwork vtrNetwork;
+    
+    // VTR processing state
+    std::atomic<bool> vtrProcessing{false};
+    std::unique_ptr<juce::ThreadPool> vtrThreadPool;
     
     // Level metering (atomic for thread safety)
     std::atomic<float> inputLevel{0.0f};
@@ -134,6 +146,9 @@ private:
     void processEQ(juce::AudioBuffer<float>& buffer);
     void processEQWithSidechain(juce::AudioBuffer<float>& buffer, const juce::AudioBuffer<float>* sidechainBuffer);
     void processOutputGain(juce::AudioBuffer<float>& buffer);
+    
+    // VTR processing helper
+    void applyVTRPredictions(const std::vector<float>& predictions);
     
     // Safety monitoring
     bool checkForDangerousGainLevels() const;
