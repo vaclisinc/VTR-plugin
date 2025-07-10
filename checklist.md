@@ -11,6 +11,13 @@
 - ✅ GUI with frequency response visualization
 - ✅ Scalable architecture (MAX_BANDS = 8, CURRENT_BANDS = 4)
 
+**VTR Model Analysis (Based on vtr_model.ipynb):**
+- ✅ Feature extraction: 17-dimensional vector (spectral_centroid, spectral_bandwidth, spectral_rolloff, 13 MFCC coefficients, RMS energy)
+- ✅ Neural network architecture: 3-layer MLP (17→64→64→5) with ReLU activation
+- ✅ Data preprocessing: StandardScaler for feature normalization
+- ✅ Model performance: MSE = 0.0216 (significantly better than linear regression: 0.5354)
+- ✅ Target frequencies: 80Hz, 240Hz, 2.5kHz, 4kHz, 10kHz (5 bands)
+
 ## VTR Integration Work Required
 
 ### Phase 1: EQ Extension for VTR
@@ -27,105 +34,152 @@
   - implementation: Set default frequencies to VTR targets, use Bell filter type
   - done_when: EQ bands target exact VTR frequencies
 
-### Phase 2: Feature Extraction Enhancement
+### Phase 2: Complete Feature Extraction System (17-dimensional vector)
 
-- [x] **VTR3**: Extend SpectrumAnalyzer for VTR features  
-  - objective: Add MFCC, spectral centroid, RMS energy extraction to existing FFT analysis
+- [x] **VTR3**: Implement spectral feature extraction
+  - objective: Extract spectral_centroid, spectral_bandwidth, spectral_rolloff from FFT
   - current_state: SpectrumAnalyzer has 2048-point FFT with Hann window
-  - implementation: Add feature extraction methods to SpectrumAnalyzer class
-  - done_when: Feature vector extraction produces 17-element output matching Python reference
+  - implementation: Add spectral feature methods to SpectrumAnalyzer class
+  - **note**: Process reference audio files at 44.1kHz (resample if needed)
+  - reference: librosa.feature.spectral_centroid, spectral_bandwidth, spectral_rolloff
+  - done_when: 3 spectral features match librosa within 1% tolerance
 
-- [ ] **VTR4**: Implement mel-scale filterbank
-  - objective: Create mel filterbank for MFCC preprocessing
-  - tests: Compare output with librosa mel filterbank
-  - implementation: Add mel filterbank calculation using existing FFT output
-  - done_when: Mel filterbank response matches librosa within 1% tolerance
+- [ ] **VTR4**: Implement mel-scale filterbank for MFCC preprocessing
+  - objective: Create mel filterbank matching librosa implementation
+  - implementation: mel_frequencies, mel_to_hz, hz_to_mel functions + filterbank matrix
+  - reference: librosa.filters.mel() - typically 128 mel bins for 44.1kHz
+  - done_when: Mel filterbank energies match librosa within 1% tolerance
 
 - [ ] **VTR5**: Implement DCT for MFCC calculation
-  - objective: Add DCT transform for MFCC coefficient extraction
-  - tests: Verify 13 MFCC coefficients against librosa reference
+  - objective: Extract 13 MFCC coefficients using DCT-II
   - implementation: Apply DCT to log mel-filterbank energies
-  - done_when: MFCC coefficients match librosa within 1% tolerance
+  - reference: librosa.feature.mfcc(n_mfcc=13)
+  - done_when: 13 MFCC coefficients match librosa within 1% tolerance
 
-- [ ] **VTR6**: Add spectral centroid calculation
-  - objective: Implement spectral centroid as weighted frequency average
-  - tests: Compare against librosa spectral_centroid output
-  - implementation: Weighted average of frequencies in power spectrum
-  - done_when: Spectral centroid matches librosa within 1% tolerance
+- [ ] **VTR6**: Implement RMS energy calculation
+  - objective: Calculate RMS energy from audio frames
+  - implementation: sqrt(mean(signal^2)) over analysis windows
+  - reference: librosa.feature.rms()
+  - done_when: RMS energy matches librosa within 1% tolerance
+
+- [ ] **VTR7**: Integrate complete 17-dimensional feature vector
+  - objective: Combine all features into single extraction pipeline
+  - implementation: [spectral_centroid, spectral_bandwidth, spectral_rolloff, mfcc_1...mfcc_13, rms_energy]
+  - done_when: Complete feature vector matches Python reference implementation
 
 ### Phase 3: Neural Network Implementation
 
-- [ ] **VTR7**: Implement lightweight neural network inference
-  - objective: Create 3-layer feed-forward network (NN-ReLU-NN-ReLU-NN)
-  - current_state: No ML dependencies needed per spec (simple architecture)
-  - implementation: Direct C++ matrix operations, no external ML libraries
-  - done_when: Network processes 17-element input, outputs 5-element EQ parameters
+- [ ] **VTR8**: Implement StandardScaler for feature normalization
+  - objective: Normalize features using mean and standard deviation
+  - implementation: scaled_feature = (feature - mean) / std
+  - reference: sklearn.preprocessing.StandardScaler from training data
+  - done_when: Feature normalization matches Python preprocessing
 
-- [ ] **VTR8**: Add JSON model loading system
-  - objective: Load neural network weights from JSON files
-  - current_state: JUCE has built-in JSON parsing capabilities
-  - implementation: JSON parsing for weight matrices and biases
+- [ ] **VTR9**: Implement 3-layer MLP neural network
+  - objective: Create feed-forward network (17→64→64→5) with ReLU activation
+  - implementation: 
+    - Layer 1: Linear(17, 64) + ReLU
+    - Layer 2: Linear(64, 64) + ReLU  
+    - Layer 3: Linear(64, 5)
+  - done_when: Network structure matches PyTorch model architecture
+
+- [ ] **VTR10**: Add model weight loading system
+  - objective: Load trained weights and biases from files
+  - implementation: Binary or JSON format for weight matrices and biases
+  - current_state: Need to export weights from PyTorch model
   - done_when: Plugin loads model weights and initializes network correctly
 
-- [ ] **VTR9**: Create background inference thread
-  - objective: Run feature extraction and NN inference off real-time audio thread
+- [ ] **VTR11**: Implement matrix operations for inference
+  - objective: Pure C++ implementation without external ML libraries
+  - implementation: Matrix multiplication, ReLU activation, bias addition
+  - done_when: Network inference produces correct outputs for test vectors
+
+### Phase 4: VTR Processing Pipeline
+
+- [ ] **VTR12**: Create background processing thread for reference audio
+  - objective: Process uploaded reference audio files without blocking UI
   - current_state: Plugin already has thread-safe spectrum analysis
-  - implementation: Add background thread for VTR processing, atomic parameter updates
-  - done_when: VTR processing runs without blocking audio thread
+  - implementation: Background thread for file processing, atomic parameter updates
+  - **workflow**: File upload → Background processing → Feature extraction → NN inference → Update EQ parameters
+  - done_when: Reference audio processing runs without blocking UI thread
 
-### Phase 4: VTR Workflow Integration
+- [ ] **VTR13**: Connect feature extraction to neural network
+  - objective: Complete pipeline: Audio → Features → Normalization → NN → EQ parameters
+  - implementation: Feature vector extraction → StandardScaler → MLP inference
+  - done_when: Audio analysis produces 5 EQ parameter predictions
 
-- [ ] **VTR10**: Connect feature extraction to neural network
-  - objective: Pipe extracted features into neural network inference
-  - implementation: Feature vector → NN inference → EQ parameter predictions
-  - done_when: Audio analysis produces EQ parameter predictions
-
-- [ ] **VTR11**: Integrate NN output with existing EQ parameter system
+- [ ] **VTR14**: Integrate NN output with existing EQ parameter system
   - objective: Apply NN predictions to existing ParameterManager
   - current_state: ParameterManager handles smoothing and thread-safe updates
   - implementation: Convert NN output to parameter values, apply through existing system
   - done_when: NN predictions automatically adjust EQ band parameters
 
-- [ ] **VTR12**: Add reference audio processing capability
-  - objective: Allow users to analyze reference audio for tone matching
-  - implementation: Audio file loading, batch processing through VTR pipeline
-  - done_when: Plugin can analyze reference files and apply learned EQ settings
+- [ ] **VTR15**: Add VTR GUI components
+  - objective: Create user interface for VTR functionality
+  - implementation:
+    - "Load Reference Audio" button
+    - File browser dialog for audio files
+    - Progress indicator for processing
+    - "Apply VTR Settings" button
+    - Status display (file loaded, processing, completed)
+  - done_when: Users can interact with VTR functionality through GUI
+
+- [ ] **VTR16**: Add reference audio file loading and processing
+  - objective: Allow users to upload reference audio files for tone matching
+  - implementation: 
+    - File browser/drag-drop interface for audio files
+    - Audio file loading (WAV, MP3, etc.) using JUCE AudioFormatManager
+    - Resample to 44.1kHz if needed for feature extraction
+    - Process entire file through VTR pipeline
+  - done_when: Plugin can load reference files, analyze them, and apply learned EQ settings
 
 ### Phase 5: Testing & Validation
 
-- [ ] **VTR13**: Validate feature extraction accuracy
+- [ ] **VTR17**: Validate feature extraction accuracy
   - objective: Ensure C++ features match Python librosa reference
   - tests: Process identical audio through both implementations
-  - done_when: C++ features match librosa within 1% tolerance
+  - acceptance: All 17 features match librosa within 1% tolerance
 
-- [ ] **VTR14**: Validate neural network inference
-  - objective: Ensure C++ inference matches Python reference
+- [ ] **VTR18**: Validate neural network inference
+  - objective: Ensure C++ inference matches PyTorch reference
   - tests: Process identical feature vectors through both implementations  
-  - done_when: C++ inference matches Python within 0.1% tolerance
+  - acceptance: C++ inference matches PyTorch within 0.1% tolerance
 
-- [ ] **VTR15**: End-to-end integration testing
+- [ ] **VTR19**: End-to-end integration testing
   - objective: Verify complete VTR workflow functions correctly
-  - tests: Reference audio → feature extraction → NN → EQ → output analysis
-  - done_when: Plugin successfully matches reference tones automatically
+  - tests: Upload reference audio → feature extraction → normalization → NN → EQ application
+  - acceptance: Plugin successfully matches reference tones through GUI workflow
 
-## Notes
+## Model Export Requirements
 
-**Leveraging Existing Architecture:**
-- The plugin already has professional-grade EQ, parameter management, and spectral analysis
-- VTR integration builds on this foundation rather than replacing it
-- Existing SpectrumAnalyzer provides FFT foundation for feature extraction
-- Existing ParameterManager handles smooth EQ parameter updates
-- Architecture is already scalable (designed for up to 8 bands)
+**From Python to C++:**
+- Export StandardScaler parameters (mean, std for 17 features)
+- Export neural network weights and biases:
+  - Layer 1: weight_matrix[64x17], bias[64]
+  - Layer 2: weight_matrix[64x64], bias[64]
+  - Layer 3: weight_matrix[5x64], bias[5]
+- Export model metadata (input/output dimensions, activation functions)
 
-**VTR-Specific Additions:**
-- Feature extraction (MFCCs, spectral centroid, RMS)
-- Simple 3-layer neural network inference  
-- JSON model loading
-- Background processing thread for ML inference
-- Reference audio processing workflow
+## Technical Implementation Notes
+
+**Feature Extraction Specifications:**
+- Sample rate: 44.1kHz (matching training data)
+- Window size: 2048 samples (existing FFT size)
+- Hop length: 512 samples (typical for librosa)
+- Mel filterbank: 128 bins (standard for MFCC)
+- MFCC coefficients: 13 (matching training data)
+- **Static analysis**: Resample uploaded reference audio to 44.1kHz if needed
+
+**Neural Network Specifications:**
+- Input: 17-dimensional feature vector
+- Hidden layers: 64 neurons each with ReLU activation
+- Output: 5 EQ parameters (gain values for each band)
+- Precision: float32 for real-time performance
 
 **Integration Strategy:**
-- Extend existing classes rather than creating from scratch
-- Maintain existing parameter system and GUI
-- Add VTR functionality as additional processing layer
+- Extend existing SpectrumAnalyzer class for feature extraction
+- Maintain existing parameter smoothing and thread-safety
+- Add VTR functionality as optional processing layer
+- **Primary use case**: Static analysis of uploaded reference audio files
+- **Future enhancement**: Dynamic analysis of real-time audio (Phase 2)
 - Preserve existing plugin functionality while adding VTR capabilities

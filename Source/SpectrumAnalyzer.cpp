@@ -226,9 +226,9 @@ std::vector<float> SpectrumAnalyzer::extractFeatures(const std::vector<float>& a
         features[2 + i] = mfccCoeffs[i];
     }
     
-    // Add two additional features (spectral rolloff and flux)
-    features[15] = 0.0f; // Placeholder for spectral rolloff
-    features[16] = 0.0f; // Placeholder for spectral flux
+    // Add two additional features (spectral bandwidth and rolloff)
+    features[15] = extractSpectralBandwidth(powerSpectrum, sampleRate);
+    features[16] = extractSpectralRolloff(powerSpectrum, sampleRate);
     
     return features;
 }
@@ -266,6 +266,62 @@ float SpectrumAnalyzer::extractSpectralCentroid(const std::vector<float>& powerS
     
     // Return weighted average frequency
     return totalEnergy > 0.0 ? static_cast<float>(weightedSum / totalEnergy) : 0.0f;
+}
+
+float SpectrumAnalyzer::extractSpectralBandwidth(const std::vector<float>& powerSpectrum, double sampleRate)
+{
+    // First calculate the spectral centroid
+    double centroid = extractSpectralCentroid(powerSpectrum, sampleRate);
+    
+    double weightedVariance = 0.0;
+    double totalEnergy = 0.0;
+    
+    for (size_t i = 1; i < powerSpectrum.size(); ++i) // Start from 1 to skip DC
+    {
+        // Convert bin index to frequency
+        double frequency = (i * sampleRate) / (2.0 * powerSpectrum.size());
+        
+        // Calculate variance from centroid
+        double power = powerSpectrum[i];
+        double deviation = frequency - centroid;
+        weightedVariance += deviation * deviation * power;
+        totalEnergy += power;
+    }
+    
+    // Return square root of weighted variance (standard deviation)
+    return totalEnergy > 0.0 ? static_cast<float>(std::sqrt(weightedVariance / totalEnergy)) : 0.0f;
+}
+
+float SpectrumAnalyzer::extractSpectralRolloff(const std::vector<float>& powerSpectrum, double sampleRate)
+{
+    // Calculate total energy
+    double totalEnergy = 0.0;
+    for (size_t i = 1; i < powerSpectrum.size(); ++i) // Start from 1 to skip DC
+    {
+        totalEnergy += powerSpectrum[i];
+    }
+    
+    if (totalEnergy <= 0.0)
+        return 0.0f;
+    
+    // Find frequency below which 85% of energy is concentrated
+    double energyThreshold = 0.85 * totalEnergy;
+    double cumulativeEnergy = 0.0;
+    
+    for (size_t i = 1; i < powerSpectrum.size(); ++i) // Start from 1 to skip DC
+    {
+        cumulativeEnergy += powerSpectrum[i];
+        
+        if (cumulativeEnergy >= energyThreshold)
+        {
+            // Convert bin index to frequency
+            double frequency = (i * sampleRate) / (2.0 * powerSpectrum.size());
+            return static_cast<float>(frequency);
+        }
+    }
+    
+    // If we reach here, return the Nyquist frequency
+    return static_cast<float>(sampleRate / 2.0);
 }
 
 float SpectrumAnalyzer::extractRMSEnergy(const std::vector<float>& audioData)

@@ -21,6 +21,8 @@ public:
     std::vector<float> extractFeatures(const std::vector<float>& audioData, double sampleRate);
     std::vector<float> extractMFCC(const std::vector<float>& powerSpectrum, double sampleRate);
     float extractSpectralCentroid(const std::vector<float>& powerSpectrum, double sampleRate);
+    float extractSpectralBandwidth(const std::vector<float>& powerSpectrum, double sampleRate);
+    float extractSpectralRolloff(const std::vector<float>& powerSpectrum, double sampleRate);
     float extractRMSEnergy(const std::vector<float>& audioData);
     std::vector<float> computeMelFilterbank(const std::vector<float>& powerSpectrum, double sampleRate);
     std::vector<float> computeDCT(const std::vector<float>& melEnergies);
