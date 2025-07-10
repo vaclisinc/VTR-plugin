@@ -396,7 +396,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout VaclisDynamicEQAudioProcesso
 
 const juce::String VaclisDynamicEQAudioProcessor::getName() const
 {
+#ifdef JucePlugin_Name
     return JucePlugin_Name;
+#else
+    return "VTR-smartEQ";
+#endif
 }
 
 bool VaclisDynamicEQAudioProcessor::acceptsMidi() const
@@ -755,7 +759,7 @@ void VaclisDynamicEQAudioProcessor::applyVTRPredictions(const std::vector<float>
 {
     if (predictions.size() != 5)
     {
-        juce::Logger::writeToLog("VTR predictions size mismatch: expected 5, got " + juce::String(predictions.size()));
+        juce::Logger::writeToLog("VTR predictions size mismatch: expected 5, got " + juce::String(static_cast<int>(predictions.size())));
         return;
     }
     

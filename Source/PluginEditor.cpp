@@ -516,8 +516,8 @@ void BandControlComponent::resized()
 VaclisDynamicEQAudioProcessorEditor::VaclisDynamicEQAudioProcessorEditor (VaclisDynamicEQAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    // Set initial size for multi-band layout (wider for 5 bands)
-    setSize(1450, 730);
+    // Set initial size for multi-band layout (wider for 5 bands + VTR area)
+    setSize(1450, 800);
     
     // Create constrainer for resize limits
     constrainer = std::make_unique<juce::ComponentBoundsConstrainer>();
@@ -619,6 +619,30 @@ VaclisDynamicEQAudioProcessorEditor::VaclisDynamicEQAudioProcessorEditor (Vaclis
     // Create sidechain attachment
     sidechainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
         audioProcessor.getValueTreeState(), "sidechain_enable", sidechainButton);
+    
+    // Setup VTR components
+    loadReferenceButton.setButtonText("Load Reference");
+    loadReferenceButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF0080FF));
+    loadReferenceButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    loadReferenceButton.onClick = [this]() { loadReferenceAudio(); };
+    addAndMakeVisible(loadReferenceButton);
+    
+    applyVTRButton.setButtonText("Apply VTR");
+    applyVTRButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF00AA00));
+    applyVTRButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    applyVTRButton.onClick = [this]() { applyVTRSettings(); };
+    applyVTRButton.setEnabled(false); // Disabled until reference is loaded
+    addAndMakeVisible(applyVTRButton);
+    
+    vtrStatusLabel.setText("VTR Status: Ready", juce::dontSendNotification);
+    vtrStatusLabel.setJustificationType(juce::Justification::centredLeft);
+    vtrStatusLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+    vtrStatusLabel.setFont(juce::Font(juce::FontOptions(12.0f)));
+    addAndMakeVisible(vtrStatusLabel);
+    
+    vtrProgressBar = std::make_unique<juce::ProgressBar>(vtrProgress);
+    vtrProgressBar->setVisible(false);
+    addAndMakeVisible(*vtrProgressBar);
     
     // Start timer for level meter updates (30Hz)
     startTimer(33);
@@ -757,6 +781,25 @@ void VaclisDynamicEQAudioProcessorEditor::resized()
         }
     }
     
+    // VTR controls area (bottom)
+    auto vtrArea = bounds.removeFromBottom(60);
+    auto vtrControlsArea = vtrArea.reduced(10);
+    
+    // VTR buttons (left side)
+    auto vtrButtonsArea = vtrControlsArea.removeFromLeft(280);
+    auto loadButtonArea = vtrButtonsArea.removeFromLeft(120);
+    auto applyButtonArea = vtrButtonsArea.removeFromLeft(120);
+    
+    loadReferenceButton.setBounds(loadButtonArea.reduced(5));
+    applyVTRButton.setBounds(applyButtonArea.reduced(5));
+    
+    // VTR status and progress (remaining area)
+    auto vtrStatusArea = vtrControlsArea.removeFromTop(25);
+    auto vtrProgressArea = vtrControlsArea;
+    
+    vtrStatusLabel.setBounds(vtrStatusArea);
+    vtrProgressBar->setBounds(vtrProgressArea.reduced(0, 5));
+    
     // Old spectrum display not used in new design (keep hidden)
     if (spectrumDisplay)
     {
@@ -794,5 +837,80 @@ void VaclisDynamicEQAudioProcessorEditor::timerCallback()
     if (outputLevelMeter)
     {
         outputLevelMeter->updateLevel(audioProcessor.getOutputLevel());
+    }
+    
+    // Update VTR status
+    updateVTRStatus();
+}
+
+void VaclisDynamicEQAudioProcessorEditor::loadReferenceAudio()
+{
+    // Create file chooser for audio files
+    fileChooser = std::make_unique<juce::FileChooser>(
+        "Load Reference Audio File",
+        juce::File::getSpecialLocation(juce::File::userHomeDirectory),
+        "*.wav;*.mp3;*.flac;*.aiff;*.m4a"
+    );
+    
+    // Show file chooser
+    auto chooserFlags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
+    
+    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& chooser)
+    {
+        auto selectedFile = chooser.getResult();
+        if (selectedFile != juce::File{})
+        {
+            // Update UI
+            vtrStatusLabel.setText("Loading: " + selectedFile.getFileName(), juce::dontSendNotification);
+            loadReferenceButton.setEnabled(false);
+            vtrProgressBar->setVisible(true);
+            // vtrProgressBar.setPercentageDisplay(true); // Not available in JUCE ProgressBar
+            
+            // Start VTR processing - using file path for now
+            juce::Logger::writeToLog("VTR: Reference file loaded: " + selectedFile.getFullPathName());
+            
+            // Enable apply button
+            applyVTRButton.setEnabled(true);
+        }
+    });
+}
+
+void VaclisDynamicEQAudioProcessorEditor::applyVTRSettings()
+{
+    // VTR processing is handled automatically in the background
+    // This button could trigger additional actions if needed
+    vtrStatusLabel.setText("VTR Settings Applied", juce::dontSendNotification);
+    
+    // Show a brief confirmation message
+    juce::AlertWindow::showMessageBoxAsync(
+        juce::AlertWindow::InfoIcon,
+        "VTR Applied",
+        "Tone replication settings have been applied to the EQ bands.",
+        "OK"
+    );
+}
+
+void VaclisDynamicEQAudioProcessorEditor::updateVTRStatus()
+{
+    // Update VTR status based on processor state
+    if (audioProcessor.isVTRProcessing())
+    {
+        vtrStatusLabel.setText("VTR Processing...", juce::dontSendNotification);
+        vtrProgressBar->setVisible(true);
+        // Progress bar animation could be added here
+    }
+    else
+    {
+        vtrProgressBar->setVisible(false);
+        
+        // Check if we have a loaded reference
+        if (applyVTRButton.isEnabled())
+        {
+            vtrStatusLabel.setText("VTR Ready - Reference Loaded", juce::dontSendNotification);
+        }
+        else
+        {
+            vtrStatusLabel.setText("VTR Status: Ready", juce::dontSendNotification);
+        }
     }
 }

@@ -145,6 +145,19 @@ private:
     juce::TextButton sidechainButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> sidechainAttachment;
     
+    // VTR components
+    juce::TextButton loadReferenceButton;
+    juce::TextButton applyVTRButton;
+    juce::Label vtrStatusLabel;
+    double vtrProgress = 0.0;
+    std::unique_ptr<juce::ProgressBar> vtrProgressBar;
+    std::unique_ptr<juce::FileChooser> fileChooser;
+    
+    // VTR callbacks
+    void loadReferenceAudio();
+    void applyVTRSettings();
+    void updateVTRStatus();
+    
     // Layout and management
     void setupBandComponents();
     void updateWindowSize();
