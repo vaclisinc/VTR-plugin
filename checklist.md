@@ -44,25 +44,25 @@
   - reference: librosa.feature.spectral_centroid, spectral_bandwidth, spectral_rolloff
   - done_when: 3 spectral features match librosa within 1% tolerance
 
-- [ ] **VTR4**: Implement mel-scale filterbank for MFCC preprocessing
+- [x] **VTR4**: Implement mel-scale filterbank for MFCC preprocessing
   - objective: Create mel filterbank matching librosa implementation
   - implementation: mel_frequencies, mel_to_hz, hz_to_mel functions + filterbank matrix
   - reference: librosa.filters.mel() - typically 128 mel bins for 44.1kHz
   - done_when: Mel filterbank energies match librosa within 1% tolerance
 
-- [ ] **VTR5**: Implement DCT for MFCC calculation
+- [x] **VTR5**: Implement DCT for MFCC calculation
   - objective: Extract 13 MFCC coefficients using DCT-II
   - implementation: Apply DCT to log mel-filterbank energies
   - reference: librosa.feature.mfcc(n_mfcc=13)
   - done_when: 13 MFCC coefficients match librosa within 1% tolerance
 
-- [ ] **VTR6**: Implement RMS energy calculation
+- [x] **VTR6**: Implement RMS energy calculation
   - objective: Calculate RMS energy from audio frames
   - implementation: sqrt(mean(signal^2)) over analysis windows
   - reference: librosa.feature.rms()
   - done_when: RMS energy matches librosa within 1% tolerance
 
-- [ ] **VTR7**: Integrate complete 17-dimensional feature vector
+- [x] **VTR7**: Integrate complete 17-dimensional feature vector
   - objective: Combine all features into single extraction pipeline
   - implementation: [spectral_centroid, spectral_bandwidth, spectral_rolloff, mfcc_1...mfcc_13, rms_energy]
   - done_when: Complete feature vector matches Python reference implementation
