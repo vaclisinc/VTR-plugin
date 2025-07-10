@@ -1,14 +1,17 @@
-# Dynamic EQ Plugin - Project Roadmap
+# VTR-Plugin Integration - Project Roadmap
 
 ## What We're Building
-Dynamic EQ = Static EQ + Level-based Gain Control
-- Each band acts as frequency-specific compressor
-- Build static EQ first, add dynamics later
+VTR-Plugin = Existing Plugin Foundation + Vaclis Tone Replication Model Integration
+- Integrate Vaclis Tone Replication model (github.com/vaclisinc/vaclis_tone_replication)
+- Build on existing plugin architecture (Dynamic EQ foundation)
+- Add ML-based tone replication processing
 
 ## Technology Stack
-1. **JUCE Framework** - Core infrastructure
-2. **chowdsp_utils** - Professional filters from Step 3
-3. **ff_meters** - Add visualization (Step 8+)
+1. **JUCE Framework** - Core infrastructure (already implemented)
+2. **Existing Plugin Foundation** - Dynamic EQ with professional filters
+3. **Vaclis Tone Replication Model** - ML-based tone processing
+4. **TensorFlow/PyTorch** - ML inference engine (TBD based on VTR requirements)
+5. **C++ ML Libraries** - For real-time inference
 
 ## Implementation Process
 
@@ -25,83 +28,87 @@ Dynamic EQ = Static EQ + Level-based Gain Control
 
 ## Project Steps
 
-### Step 1: Audio Pass-Through [Simple: 1 session] ✅
-- Create JUCE plugin structure
-- Verify audio flows correctly
-- ~1 hour total
-
-### Step 2: Parameter System [Simple: 1 session] ✅
-- Add parameter management
-- Test with master gain
-- ~1-2 hours total
-
-### Step 3: chowdsp Integration & Single Band EQ [Medium: 3-4 sessions]
-- Integrate chowdsp_utils library
-- Implement professional filter using chowdsp
-- Add frequency, gain, Q controls
-- Test filtering works with high quality
-- ~4-5 hours total
-
-### Step 4: Filter Types [Medium: 2-3 sessions]
-- Add Bell, High/Low Shelf using chowdsp
-- Add High/Low Pass filters
-- Parameter management for filter types
-- Verify each type works correctly
+### Step 1: VTR Model Analysis & Integration Planning [Medium: 2-3 sessions]
+- Analyze VTR model architecture and requirements
+- Determine integration approach (Python bridge, C++ conversion, etc.)
+- Plan data flow between plugin and VTR model
+- Define API interface for VTR integration
 - ~3-4 hours total
 
-### Step 5: Multi-Band System [Medium: 2-3 sessions]
-- Expand to 4 bands
-- Band management architecture
-- Parallel processing setup
-- Band enable/disable controls
+### Step 2: VTR Model Integration Foundation [Complex: 4-5 sessions]
+- Implement VTR model loading and initialization
+- Create audio processing pipeline for VTR
+- Add parameter interface for VTR controls
+- Test basic VTR integration with plugin
+- ~6-8 hours total
+
+### Step 3: Real-time Processing Integration [Complex: 4-5 sessions]
+- Optimize VTR model for real-time audio processing
+- Implement proper buffering and latency handling
+- Add multi-threading for VTR processing
+- Test performance and stability
+- ~6-8 hours total
+
+### Step 4: Parameter Control System [Medium: 3-4 sessions]
+- Create VTR-specific parameter controls
+- Integrate VTR parameters with plugin GUI
+- Add preset system for VTR settings
+- Test parameter automation
 - ~4-5 hours total
 
-### Step 6: Basic GUI [Complex: 3-5 sessions]
-- Frequency response display
-- Control layout for all bands
-- Real-time updates
-- Basic visual feedback
+### Step 5: Audio Processing Pipeline [Complex: 4-5 sessions]
+- Integrate VTR processing with existing plugin audio chain
+- Add bypass and wet/dry controls
+- Implement proper signal routing
+- Test audio quality and stability
 - ~6-8 hours total
 
-### Step 7: Add Dynamics [Complex: 3-5 sessions]
-- Envelope detection per band
-- Threshold/ratio controls
-- Gain reduction metering
-- Attack/release controls
-- ~6-8 hours total
+### Step 6: GUI Integration [Complex: 3-5 sessions]
+- Add VTR controls to plugin GUI
+- Create visualization for VTR processing
+- Update existing GUI to accommodate VTR features
+- Test GUI responsiveness and usability
+- ~5-7 hours total
 
-### Step 8: Enhanced Features & Visualization [Complex: 3-5 sessions]
-- Spectrum analyzer (ff_meters)
-- Gain reduction visualization
-- Sidechain support
-- Advanced metering
-- ~6-8 hours total
+### Step 7: Performance Optimization [Complex: 3-4 sessions]
+- Optimize VTR model inference for real-time use
+- Implement CPU usage monitoring
+- Add quality vs. performance settings
+- Test on various system configurations
+- ~4-6 hours total
 
-## 🎉 PROJECT COMPLETED
-
-The Dynamic EQ Plugin implementation is now complete with Steps 1-8 finished. Steps 9 and 10 were removed as the plugin already meets professional standards and is fully functional for production use.
-
-**Final Plugin Features:**
-- Professional 4-band dynamic EQ system
-- Advanced visualization with spectrum analyzer  
-- Complete dynamics processing with professional controls
-- Sidechain support and enhanced GUI
-- Ready for production use in professional audio applications
+### Step 8: Testing & Validation [Medium: 2-3 sessions]
+- Comprehensive testing of VTR integration
+- Validate tone replication accuracy
+- Test stability under various conditions
+- User acceptance testing
+- ~3-4 hours total
 
 ## Key Architecture
 ```cpp
-// Static EQ with chowdsp (Steps 3-6)
-class Band {
-    chowdsp::EQ::EQFilter<float> filter;  // Professional filter
-    float freq, gain, q;
-    FilterType type;  // Bell, Shelf, Pass
+// VTR Integration Layer
+class VTRProcessor {
+    VTRModel model;
+    AudioBuffer inputBuffer;
+    AudioBuffer outputBuffer;
+    VTRParameters params;
+    
+    void processBlock(AudioBuffer& audio);
+    void loadModel(const std::string& modelPath);
+    void updateParameters(const VTRParameters& newParams);
 };
 
-// Dynamic EQ (Steps 7+)
-class DynamicBand : public Band {
-    EnvelopeFollower envelope;
-    float threshold, ratio;
-    float attack, release;
+// Plugin Integration
+class VTRPlugin : public ExistingPlugin {
+    VTRProcessor vtrProcessor;
+    
+    void processBlock(AudioBuffer& buffer) override {
+        // Existing plugin processing
+        ExistingPlugin::processBlock(buffer);
+        
+        // VTR processing
+        vtrProcessor.processBlock(buffer);
+    }
 };
 ```
 
@@ -110,4 +117,6 @@ class DynamicBand : public Band {
 - **Ask > Assume**: Always clarify with user
 - **Test Everything**: Each subtask needs verification
 - **Document Decisions**: Future agents need context
-- **chowdsp Integration**: Using professional filters from the start avoids rewriting later
+- **Existing Foundation**: Build on the completed Dynamic EQ plugin
+- **Parallel Development**: VTR work doesn't conflict with plugin updates
+- **Performance Critical**: Real-time audio processing requirements
