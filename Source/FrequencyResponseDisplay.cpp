@@ -119,7 +119,7 @@ void FrequencyResponseDisplay::paint(juce::Graphics& g)
     }
     
     // Draw EQ points
-    for (int band = 0; band < 4; ++band)
+    for (int band = 0; band < 5; ++band)
     {
         auto& point = eqPoints[band];
         if (point.isActive)
@@ -442,7 +442,7 @@ int FrequencyResponseDisplay::findNearestEQPoint(juce::Point<float> position)
 
 void FrequencyResponseDisplay::updateEQPointPosition(int bandIndex, juce::Point<float> position)
 {
-    if (bandIndex >= 0 && bandIndex < 4)
+    if (bandIndex >= 0 && bandIndex < 5)
     {
         eqPoints[bandIndex].screenPosition = position;
         
@@ -650,7 +650,7 @@ std::vector<float> FrequencyResponseDisplay::calculateCombinedEQResponse(int num
         return cachedCombinedResponse;
     
     // Calculate combined response by summing all enabled bands
-    for (int band = 0; band < 4; ++band)
+    for (int band = 0; band < 5; ++band)
     {
         // Check if band is enabled
         juce::String enableParamID = "eq_enable_band" + juce::String(band);
@@ -694,14 +694,15 @@ float FrequencyResponseDisplay::yToGainDB(float y) const
 // Band color helper
 juce::Colour FrequencyResponseDisplay::getBandColour(int bandIndex) const
 {
-    const juce::Colour bandColours[4] = {
+    const juce::Colour bandColours[5] = {
+        juce::Colour(0xff1a1aff),  // SUB - Deep blue
         juce::Colour(0xff4a9eff),  // LOW - Blue
-        juce::Colour(0xff4aff9e),  // LOW-MID - Green
+        juce::Colour(0xff4aff9e),  // MID - Green
         juce::Colour(0xffff9e4a),  // HIGH-MID - Orange
         juce::Colour(0xffff4a4a)   // HIGH - Red
     };
     
-    return (bandIndex >= 0 && bandIndex < 4) ? bandColours[bandIndex] : juce::Colours::white;
+    return (bandIndex >= 0 && bandIndex < 5) ? bandColours[bandIndex] : juce::Colours::white;
 }
 
 // Cache management
@@ -739,7 +740,7 @@ float FrequencyResponseDisplay::getActualGainAtFrequency(float frequency)
     float totalGain = 0.0f;
     
     // Calculate contribution from each active band
-    for (int band = 0; band < 4; ++band)
+    for (int band = 0; band < 5; ++band)
     {
         // Check if band is enabled
         juce::String enableParamID = "eq_enable_band" + juce::String(band);
