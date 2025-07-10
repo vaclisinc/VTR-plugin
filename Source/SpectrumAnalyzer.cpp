@@ -17,6 +17,10 @@ SpectrumAnalyzer::SpectrumAnalyzer()
     outputPeakHold.resize(spectrumSize, 0.0f);
     inputPeakTimer.resize(spectrumSize, 0.0f);
     outputPeakTimer.resize(spectrumSize, 0.0f);
+    
+    // Initialize VTR3 feature extraction
+    latestFeatures.resize(TOTAL_FEATURES, 0.0f);
+    featureUpdateInterval = static_cast<int>(UPDATE_RATE_HZ / featureUpdateRateHz);
 }
 
 void SpectrumAnalyzer::prepare(double sampleRateToUse, int samplesPerBlock)
@@ -97,6 +101,17 @@ void SpectrumAnalyzer::processBlock(const juce::AudioBuffer<float>& inputBuffer,
         updatePeakHold(outputSpectrum, outputPeakHold);
         
         nextFFTBlockReady = false;
+        
+        // VTR3 Feature extraction (if enabled)
+        if (featureExtractionEnabled.load())
+        {
+            featureUpdateCounter++;
+            if (featureUpdateCounter >= featureUpdateInterval)
+            {
+                extractAndStoreFeatures();
+                featureUpdateCounter = 0;
+            }
+        }
     }
 }
 
@@ -391,4 +406,54 @@ std::vector<float> SpectrumAnalyzer::computePowerSpectrum(const std::vector<floa
     }
     
     return powerSpectrum;
+}
+
+// VTR3 Feature storage and management methods
+void SpectrumAnalyzer::extractAndStoreFeatures()
+{
+    // Extract features from current audio buffer in FIFO
+    std::vector<float> audioData(inputFifo.begin(), inputFifo.end());
+    
+    // Extract features
+    std::vector<float> features = extractFeatures(audioData, sampleRate);
+    
+    // Store features thread-safely
+    {
+        std::lock_guard<std::mutex> lock(spectrumMutex);
+        latestFeatures = std::move(features);
+        newFeaturesAvailable.store(true);
+    }
+}
+
+std::vector<float> SpectrumAnalyzer::getLatestFeatures() const
+{
+    std::lock_guard<std::mutex> lock(spectrumMutex);
+    return latestFeatures;
+}
+
+bool SpectrumAnalyzer::hasNewFeatures() const
+{
+    return newFeaturesAvailable.load();
+}
+
+void SpectrumAnalyzer::enableFeatureExtraction(bool enable)
+{
+    featureExtractionEnabled.store(enable);
+    if (enable)
+    {
+        // Initialize features storage
+        std::lock_guard<std::mutex> lock(spectrumMutex);
+        latestFeatures.resize(TOTAL_FEATURES, 0.0f);
+        newFeaturesAvailable.store(false);
+        featureUpdateCounter = 0;
+    }
+}
+
+void SpectrumAnalyzer::setFeatureUpdateRate(float rateHz)
+{
+    featureUpdateRateHz = rateHz;
+    // Calculate update interval based on rate
+    // Assuming FFT updates at UPDATE_RATE_HZ (30Hz)
+    featureUpdateInterval = static_cast<int>(UPDATE_RATE_HZ / rateHz);
+    featureUpdateInterval = std::max(1, featureUpdateInterval); // At least every FFT
 }

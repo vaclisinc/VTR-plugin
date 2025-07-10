@@ -25,6 +25,12 @@ public:
     std::vector<float> computeMelFilterbank(const std::vector<float>& powerSpectrum, double sampleRate);
     std::vector<float> computeDCT(const std::vector<float>& melEnergies);
     
+    // VTR3 Feature storage and retrieval
+    std::vector<float> getLatestFeatures() const;
+    bool hasNewFeatures() const;
+    void enableFeatureExtraction(bool enable);
+    void setFeatureUpdateRate(float rateHz);
+    
     // Public access to sample rate for frequency calculations
     double getSampleRate() const { return sampleRate; }
     
@@ -48,6 +54,7 @@ private:
     float melScale(float frequency);
     float invMelScale(float mel);
     std::vector<float> computePowerSpectrum(const std::vector<float>& audioData);
+    void extractAndStoreFeatures();
     
     // FFT processing
     juce::dsp::FFT fft;
@@ -71,6 +78,14 @@ private:
     
     // Peak hold decay
     float peakDecayRate = 0.0f;
+    
+    // VTR3 Feature extraction state
+    std::vector<float> latestFeatures;
+    std::atomic<bool> newFeaturesAvailable{false};
+    std::atomic<bool> featureExtractionEnabled{false};
+    float featureUpdateRateHz = 10.0f; // 10 Hz default
+    int featureUpdateCounter = 0;
+    int featureUpdateInterval = 1;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SpectrumAnalyzer)
 };
