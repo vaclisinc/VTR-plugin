@@ -93,7 +93,7 @@ private:
     bool spectrumVisible = true;
     
     // EQ interaction state
-    std::array<EQPoint, 4> eqPoints;
+    std::array<EQPoint, 5> eqPoints;
     int draggingBandIndex = -1;
     bool isDragging = false;
     juce::Point<float> dragStartPosition;

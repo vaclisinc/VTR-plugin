@@ -9,7 +9,7 @@ FrequencyResponseDisplay::FrequencyResponseDisplay(SpectrumAnalyzer& analyzer)
     startTimer(static_cast<int>(1000.0f / UPDATE_RATE_HZ));
     
     // Initialize EQ points
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 5; ++i) {
         eqPoints[i].bandIndex = i;
         eqPoints[i].isActive = true;
     }
@@ -22,7 +22,7 @@ FrequencyResponseDisplay::FrequencyResponseDisplay(SpectrumAnalyzer& analyzer, V
     startTimer(static_cast<int>(1000.0f / UPDATE_RATE_HZ));
     
     // Initialize EQ points
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 5; ++i) {
         eqPoints[i].bandIndex = i;
         eqPoints[i].isActive = true;
     }
@@ -31,7 +31,7 @@ FrequencyResponseDisplay::FrequencyResponseDisplay(SpectrumAnalyzer& analyzer, V
     updateEQPointsFromParameters();
     
     // Add parameter listeners for all EQ parameters
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 5; ++i)
     {
         juce::String enableParamID = "eq_enable_band" + juce::String(i);
         juce::String freqParamID = "eq_freq_band" + juce::String(i);
@@ -52,7 +52,7 @@ FrequencyResponseDisplay::~FrequencyResponseDisplay()
     if (audioProcessor)
     {
         // Remove all parameter listeners
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < 5; ++i)
         {
             juce::String enableParamID = "eq_enable_band" + juce::String(i);
             juce::String freqParamID = "eq_freq_band" + juce::String(i);
@@ -406,7 +406,7 @@ void FrequencyResponseDisplay::mouseMove(const juce::MouseEvent& event)
     bool repaintNeeded = false;
     
     // Check hover state for all points
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 5; ++i)
     {
         bool wasHovered = eqPoints[i].isHovered;
         eqPoints[i].isHovered = (getDistanceToPoint(event.position, i) < 12.0f);
@@ -424,7 +424,7 @@ int FrequencyResponseDisplay::findNearestEQPoint(juce::Point<float> position)
     float minDistance = std::numeric_limits<float>::max();
     int nearestPoint = -1;
     
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 5; ++i)
     {
         if (eqPoints[i].isActive)
         {
@@ -486,7 +486,7 @@ void FrequencyResponseDisplay::updateEQPointsFromParameters()
     if (audioProcessor == nullptr)
         return;
         
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 5; ++i)
     {
         // Get frequency parameter
         juce::String freqParamID = "eq_freq_band" + juce::String(i);
@@ -498,7 +498,7 @@ void FrequencyResponseDisplay::updateEQPointsFromParameters()
         else
         {
             // Set default frequency if parameter not found
-            const float defaultFreqs[4] = {100.0f, 500.0f, 2000.0f, 8000.0f};
+            const float defaultFreqs[5] = {80.0f, 240.0f, 2500.0f, 4000.0f, 10000.0f};
             eqPoints[i].frequency = defaultFreqs[i];
         }
         
@@ -712,7 +712,7 @@ void FrequencyResponseDisplay::invalidateResponseCache()
 
 void FrequencyResponseDisplay::updateEQPointScreenPositions()
 {
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 5; ++i)
     {
         // Update X position based on frequency
         eqPoints[i].screenPosition.x = frequencyToX(eqPoints[i].frequency);

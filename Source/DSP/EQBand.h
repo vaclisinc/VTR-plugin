@@ -11,7 +11,7 @@ namespace DynamicEQ {
 
 // Constants for maintainability
 static constexpr int MAX_BANDS = 8;  // Future expansion ready
-static constexpr int CURRENT_BANDS = 4;  // Current implementation
+static constexpr int CURRENT_BANDS = 5;  // VTR integration: expanded from 4 to 5 bands
 
 /**
  * Filter types supported by the EQ band

@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(vaclis-DynamicEQ VERSION 1.0.0)
+project(VTR-smartEQ VERSION 1.0.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Configure for host CPU architecture only (not universal binary)
+set(CMAKE_OSX_ARCHITECTURES ${CMAKE_HOST_SYSTEM_PROCESSOR})
 
 # Find JUCE
 include(FetchContent)
@@ -19,7 +22,7 @@ FetchContent_MakeAvailable(JUCE)
 add_subdirectory(third-party/chowdsp_utils)
 
 # Plugin configuration
-juce_add_plugin(vaclis-DynamicEQ
+juce_add_plugin(VTR-smartEQ
     COMPANY_NAME "Vaclis Audio"
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
@@ -28,15 +31,15 @@ juce_add_plugin(vaclis-DynamicEQ
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
     COPY_PLUGIN_AFTER_BUILD TRUE
     PLUGIN_MANUFACTURER_CODE Vacl
-    PLUGIN_CODE VdEQ
+    PLUGIN_CODE VsEQ
     FORMATS AU VST3
-    PRODUCT_NAME "vaclis-DynamicEQ"
-    BUNDLE_ID "com.vaclis.vaclis-DynamicEQ"
-    DESCRIPTION "Multi-band Dynamic EQ Plugin"
+    PRODUCT_NAME "VTR-smartEQ"
+    BUNDLE_ID "com.vaclis.VTR-smartEQ"
+    DESCRIPTION "AI-Powered Smart EQ Plugin"
 )
 
 # Source files
-target_sources(vaclis-DynamicEQ
+target_sources(VTR-smartEQ
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginProcessor.h
@@ -59,7 +62,7 @@ target_sources(vaclis-DynamicEQ
 )
 
 # Compile definitions
-target_compile_definitions(vaclis-DynamicEQ
+target_compile_definitions(VTR-smartEQ
     PUBLIC
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
@@ -75,7 +78,7 @@ target_compile_definitions(vaclis-DynamicEQ
 )
 
 # Link libraries
-target_link_libraries(vaclis-DynamicEQ
+target_link_libraries(VTR-smartEQ
     PRIVATE
         juce::juce_audio_basics
         juce::juce_audio_devices

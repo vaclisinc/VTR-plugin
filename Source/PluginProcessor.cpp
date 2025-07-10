@@ -330,8 +330,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout VaclisDynamicEQAudioProcesso
     addGainParameter(layout, "output_gain", "Output Gain", 0.0f);
     
     // Multi-band EQ parameters with different default frequencies for each band
-    const float defaultFreqs[DynamicEQ::CURRENT_BANDS] = {100.0f, 500.0f, 2000.0f, 8000.0f};  // LOW, LOW-MID, HIGH-MID, HIGH
-    const juce::String bandNames[DynamicEQ::CURRENT_BANDS] = {"LOW", "LOW-MID", "HIGH-MID", "HIGH"};
+    // VTR target frequencies: 80Hz, 240Hz, 2.5kHz, 4kHz, 10kHz
+    const float defaultFreqs[DynamicEQ::CURRENT_BANDS] = {80.0f, 240.0f, 2500.0f, 4000.0f, 10000.0f};
+    const juce::String bandNames[DynamicEQ::CURRENT_BANDS] = {"SUB", "LOW", "MID", "HIGH-MID", "HIGH"};
     
     for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
     {
@@ -475,13 +476,22 @@ bool VaclisDynamicEQAudioProcessor::isBusesLayoutSupported (const BusesLayout& l
     juce::ignoreUnused (layouts);
     return true;
   #else
-    // Support both mono and stereo configurations
-    if (layouts.getMainOutputChannelSet() == juce::AudioChannelSet::disabled())
+    // Support stereo main bus
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
-
-    // Input and output layouts should match
-    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
+        
+    if (layouts.getMainInputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
+    
+    // If sidechain bus exists, it should be stereo or disabled
+    // Check if we have more than one input bus
+    if (getBusCount(true) > 1)
+    {
+        auto sidechainLayout = layouts.getChannelSet(true, 1);
+        if (sidechainLayout != juce::AudioChannelSet::stereo() && 
+            sidechainLayout != juce::AudioChannelSet::disabled())
+            return false;
+    }
 
     return true;
   #endif
@@ -526,10 +536,16 @@ void VaclisDynamicEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
     // Get sidechain input if enabled and available
     if (sidechainEnabled && getBusCount(true) > 1)
     {
-        auto sidechainBus = getBusBuffer(buffer, true, 1); // Sidechain is input bus 1
-        if (sidechainBus.getNumChannels() > 0 && sidechainBus.getNumSamples() > 0)
+        if (auto* bus = getBus(true, 1))
         {
-            sidechainBuffer = &sidechainBus;
+            if (bus->isEnabled())
+            {
+                auto sidechainBus = getBusBuffer(buffer, true, 1); // Sidechain is input bus 1
+                if (sidechainBus.getNumChannels() > 0 && sidechainBus.getNumSamples() > 0)
+                {
+                    sidechainBuffer = &sidechainBus;
+                }
+            }
         }
     }
     

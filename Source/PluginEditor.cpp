@@ -23,8 +23,8 @@ void BandControlComponent::setupComponents()
     bandLabel.setColour(juce::Label::textColourId, juce::Colours::white);
     addAndMakeVisible(bandLabel);
     
-    // Set frequency range labels based on band
-    const juce::String frequencyRanges[4] = {"20Hz-200Hz", "200Hz-800Hz", "800Hz-3kHz", "3kHz-20kHz"};
+    // Set frequency range labels based on band (5 bands for VTR)
+    const juce::String frequencyRanges[5] = {"20Hz-150Hz", "150Hz-400Hz", "400Hz-3kHz", "3kHz-6kHz", "6kHz-20kHz"};
     frequencyRangeLabel.setText(frequencyRanges[bandIndex], juce::dontSendNotification);
     frequencyRangeLabel.setJustificationType(juce::Justification::centred);
     frequencyRangeLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
@@ -145,15 +145,8 @@ void BandControlComponent::setupComponents()
         soloButton.setToggleState(soloValue > 0.5f, juce::dontSendNotification);
     }
     
-    // Ensure proper initial layout
-    juce::MessageManager::callAsync([this]()
-    {
-        if (getWidth() > 0 && getHeight() > 0)
-        {
-            resized();
-            repaint();
-        }
-    });
+    // Remove async call that could cause crashes during destruction
+    // Initial layout will be handled by the normal component lifecycle
 }
 
 void BandControlComponent::setupFilterTypeButtons()
@@ -389,8 +382,9 @@ void BandControlComponent::paint(juce::Graphics& g)
 {
     // Band background with different colors
     const juce::Colour bandColours[DynamicEQ::CURRENT_BANDS] = {
+        juce::Colour(0xff1a1a3a),  // SUB - Deep blue tint
         juce::Colour(0xff1a2a3a),  // LOW - Blue tint
-        juce::Colour(0xff1a3a2a),  // LOW-MID - Green tint  
+        juce::Colour(0xff1a3a2a),  // MID - Green tint  
         juce::Colour(0xff3a2a1a),  // HIGH-MID - Orange tint
         juce::Colour(0xff3a1a1a)   // HIGH - Red tint
     };
@@ -522,13 +516,13 @@ void BandControlComponent::resized()
 VaclisDynamicEQAudioProcessorEditor::VaclisDynamicEQAudioProcessorEditor (VaclisDynamicEQAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    // Set initial size for multi-band layout
-    setSize(1250, 730);
+    // Set initial size for multi-band layout (wider for 5 bands)
+    setSize(1450, 730);
     
     // Create constrainer for resize limits
     constrainer = std::make_unique<juce::ComponentBoundsConstrainer>();
     constrainer->setMinimumSize(800, 350);
-    constrainer->setMaximumSize(1400, 600);
+    constrainer->setMaximumSize(1600, 600);
     
     // Use the built-in resize corner from AudioProcessorEditor
     setResizable(true, constrainer.get());
@@ -646,11 +640,13 @@ VaclisDynamicEQAudioProcessorEditor::VaclisDynamicEQAudioProcessorEditor (Vaclis
 
 VaclisDynamicEQAudioProcessorEditor::~VaclisDynamicEQAudioProcessorEditor()
 {
+    // Stop the timer before destruction to prevent callbacks on deleted objects
+    stopTimer();
 }
 
 void VaclisDynamicEQAudioProcessorEditor::setupBandComponents()
 {
-    const juce::String bandNames[DynamicEQ::CURRENT_BANDS] = {"LOW", "LOW-MID", "HIGH-MID", "HIGH"};
+    const juce::String bandNames[DynamicEQ::CURRENT_BANDS] = {"SUB", "LOW", "MID", "HIGH-MID", "HIGH"};
     
     for (int i = 0; i < DynamicEQ::CURRENT_BANDS; ++i)
     {
