@@ -6,7 +6,9 @@
 
 class VaclisDynamicEQAudioProcessor;
 
-class FrequencyResponseDisplay : public juce::Component, private juce::Timer
+class FrequencyResponseDisplay : public juce::Component, 
+                               private juce::Timer,
+                               private juce::AudioProcessorValueTreeState::Listener
 {
 public:
     enum class DisplayMode
@@ -31,6 +33,7 @@ public:
     
     FrequencyResponseDisplay(SpectrumAnalyzer& analyzer);
     FrequencyResponseDisplay(SpectrumAnalyzer& analyzer, VaclisDynamicEQAudioProcessor& processor);
+    ~FrequencyResponseDisplay() override;
     
     void paint(juce::Graphics& g) override;
     void resized() override;
@@ -69,6 +72,7 @@ public:
     
 private:
     void timerCallback() override;
+    void parameterChanged(const juce::String& parameterID, float newValue) override;
     void updateSpectrumData();
     
     void drawFrequencyGrid(juce::Graphics& g);
@@ -131,6 +135,7 @@ private:
     // Helper methods
     void invalidateResponseCache();
     void updateEQPointScreenPositions();
+    float getActualGainAtFrequency(float frequency);
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrequencyResponseDisplay)
 };

@@ -175,7 +175,12 @@ This project showcases professional plugin development practices:
 
 ## 📄 License
 
-MIT License - see LICENSE file for details
+This project is licensed under the **Beer-Ware License** (Revision 42) 🍺
+
+> As long as you retain this notice you can do whatever you want with this stuff. 
+> If we meet some day, and you think this stuff is worth it, you can buy me a beer in return.
+
+See LICENSE file for the full license text.
 
 ## 🙏 Acknowledgments
 

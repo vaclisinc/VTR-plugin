@@ -29,6 +29,44 @@ FrequencyResponseDisplay::FrequencyResponseDisplay(SpectrumAnalyzer& analyzer, V
     
     // Update EQ points from current parameters
     updateEQPointsFromParameters();
+    
+    // Add parameter listeners for all EQ parameters
+    for (int i = 0; i < 4; ++i)
+    {
+        juce::String enableParamID = "eq_enable_band" + juce::String(i);
+        juce::String freqParamID = "eq_freq_band" + juce::String(i);
+        juce::String gainParamID = "eq_gain_band" + juce::String(i);
+        juce::String qParamID = "eq_q_band" + juce::String(i);
+        juce::String typeParamID = "eq_type_band" + juce::String(i);
+        
+        processor.getValueTreeState().addParameterListener(enableParamID, this);
+        processor.getValueTreeState().addParameterListener(freqParamID, this);
+        processor.getValueTreeState().addParameterListener(gainParamID, this);
+        processor.getValueTreeState().addParameterListener(qParamID, this);
+        processor.getValueTreeState().addParameterListener(typeParamID, this);
+    }
+}
+
+FrequencyResponseDisplay::~FrequencyResponseDisplay()
+{
+    if (audioProcessor)
+    {
+        // Remove all parameter listeners
+        for (int i = 0; i < 4; ++i)
+        {
+            juce::String enableParamID = "eq_enable_band" + juce::String(i);
+            juce::String freqParamID = "eq_freq_band" + juce::String(i);
+            juce::String gainParamID = "eq_gain_band" + juce::String(i);
+            juce::String qParamID = "eq_q_band" + juce::String(i);
+            juce::String typeParamID = "eq_type_band" + juce::String(i);
+            
+            audioProcessor->getValueTreeState().removeParameterListener(enableParamID, this);
+            audioProcessor->getValueTreeState().removeParameterListener(freqParamID, this);
+            audioProcessor->getValueTreeState().removeParameterListener(gainParamID, this);
+            audioProcessor->getValueTreeState().removeParameterListener(qParamID, this);
+            audioProcessor->getValueTreeState().removeParameterListener(typeParamID, this);
+        }
+    }
 }
 
 void FrequencyResponseDisplay::paint(juce::Graphics& g)
@@ -140,6 +178,19 @@ void FrequencyResponseDisplay::timerCallback()
     if (audioProcessor != nullptr)
     {
         updateEQPointsFromParameters();
+        // Always invalidate cache to ensure curve updates with parameter changes
+        invalidateResponseCache();
+    }
+}
+
+void FrequencyResponseDisplay::parameterChanged(const juce::String& parameterID, float newValue)
+{
+    // When any EQ parameter changes, invalidate cache and update display
+    if (parameterID.startsWith("eq_"))
+    {
+        invalidateResponseCache();
+        updateEQPointScreenPositions();
+        repaint();
     }
 }
 
@@ -305,9 +356,37 @@ void FrequencyResponseDisplay::mouseDrag(const juce::MouseEvent& event)
 {
     if (isDragging && draggingBandIndex != -1)
     {
-        updateEQPointPosition(draggingBandIndex, event.position);
-        updateParameterFromEQPoint(draggingBandIndex);
+        // Update both frequency and gain based on mouse position
+        float newFrequency = xToFrequency(event.position.x);
+        float newGain = yToGainDB(event.position.y);
+        
+        // Clamp values to valid ranges
+        newFrequency = juce::jlimit(20.0f, 20000.0f, newFrequency);
+        newGain = juce::jlimit(-24.0f, 12.0f, newGain);
+        
+        // Update the point values
+        eqPoints[draggingBandIndex].frequency = newFrequency;
+        eqPoints[draggingBandIndex].gainDB = newGain;
+        
+        // Update frequency parameter
+        juce::String freqParamID = "eq_freq_band" + juce::String(draggingBandIndex);
+        if (auto* freqParam = audioProcessor->getValueTreeState().getParameter(freqParamID))
+        {
+            float normalizedFreq = std::log10(newFrequency / 20.0f) / std::log10(20000.0f / 20.0f);
+            freqParam->setValueNotifyingHost(normalizedFreq);
+        }
+        
+        // Update gain parameter
+        juce::String gainParamID = "eq_gain_band" + juce::String(draggingBandIndex);
+        if (auto* gainParam = audioProcessor->getValueTreeState().getParameter(gainParamID))
+        {
+            float normalizedGain = (newGain + 24.0f) / 36.0f;
+            gainParam->setValueNotifyingHost(normalizedGain);
+        }
+        
+        // Update all points to follow the new curve
         invalidateResponseCache();
+        updateEQPointScreenPositions();
         repaint();
     }
 }
@@ -450,13 +529,12 @@ void FrequencyResponseDisplay::updateEQPointsFromParameters()
             eqPoints[i].Q = 1.0f;
         }
         
-        // Update screen position
-        eqPoints[i].screenPosition.x = frequencyToX(eqPoints[i].frequency);
-        eqPoints[i].screenPosition.y = magnitudeToY(eqPoints[i].gainDB);
-        
         // Ensure point is marked as active
         eqPoints[i].isActive = true;
     }
+    
+    // Update screen positions based on actual combined response
+    updateEQPointScreenPositions();
 }
 
 float FrequencyResponseDisplay::getDistanceToPoint(juce::Point<float> position, int bandIndex)
@@ -499,6 +577,12 @@ std::vector<float> FrequencyResponseDisplay::calculateBandResponse(int bandIndex
     
     if (audioProcessor == nullptr || bandIndex < 0 || bandIndex >= 4)
         return response;
+        
+    // Check if band is enabled
+    juce::String enableParamID = "eq_enable_band" + juce::String(bandIndex);
+    auto* enableParam = audioProcessor->getValueTreeState().getParameter(enableParamID);
+    if (!enableParam || enableParam->getValue() < 0.5f)
+        return response; // Band is disabled, return flat response
     
     // Get current band parameters
     auto& point = eqPoints[bandIndex];
@@ -565,10 +649,13 @@ std::vector<float> FrequencyResponseDisplay::calculateCombinedEQResponse(int num
     if (responseCacheValid && cachedCombinedResponse.size() == numPoints)
         return cachedCombinedResponse;
     
-    // Calculate combined response by summing all active bands
+    // Calculate combined response by summing all enabled bands
     for (int band = 0; band < 4; ++band)
     {
-        if (eqPoints[band].isActive)
+        // Check if band is enabled
+        juce::String enableParamID = "eq_enable_band" + juce::String(band);
+        auto* enableParam = audioProcessor->getValueTreeState().getParameter(enableParamID);
+        if (enableParam && enableParam->getValue() >= 0.5f)
         {
             auto bandResponse = calculateBandResponse(band, numPoints);
             for (int i = 0; i < numPoints; ++i)
@@ -627,9 +714,79 @@ void FrequencyResponseDisplay::updateEQPointScreenPositions()
 {
     for (int i = 0; i < 4; ++i)
     {
+        // Update X position based on frequency
         eqPoints[i].screenPosition.x = frequencyToX(eqPoints[i].frequency);
-        eqPoints[i].screenPosition.y = magnitudeToY(eqPoints[i].gainDB);
+        
+        // For the dragged point, use its own gain value
+        if (i == draggingBandIndex && isDragging)
+        {
+            eqPoints[i].screenPosition.y = magnitudeToY(eqPoints[i].gainDB);
+        }
+        else
+        {
+            // For other points, calculate the actual gain at their frequency from the combined response
+            float actualGain = getActualGainAtFrequency(eqPoints[i].frequency);
+            eqPoints[i].screenPosition.y = magnitudeToY(actualGain);
+        }
     }
+}
+
+float FrequencyResponseDisplay::getActualGainAtFrequency(float frequency)
+{
+    if (audioProcessor == nullptr)
+        return 0.0f;
+        
+    float totalGain = 0.0f;
+    
+    // Calculate contribution from each active band
+    for (int band = 0; band < 4; ++band)
+    {
+        // Check if band is enabled
+        juce::String enableParamID = "eq_enable_band" + juce::String(band);
+        auto* enableParam = audioProcessor->getValueTreeState().getParameter(enableParamID);
+        if (!enableParam || enableParam->getValue() < 0.5f)
+            continue; // Band is disabled
+            
+        auto& point = eqPoints[band];
+        
+        // Get filter type
+        DynamicEQ::FilterType filterType = DynamicEQ::FilterType::Bell;
+        juce::String typeParamID = "eq_type_band" + juce::String(band);
+        if (auto* typeParam = audioProcessor->getValueTreeState().getParameter(typeParamID))
+        {
+            int typeIndex = static_cast<int>(typeParam->getValue() * 4.99f);
+            filterType = static_cast<DynamicEQ::FilterType>(typeIndex);
+        }
+        
+        // Calculate filter response at the given frequency
+        float bandGain = 0.0f;
+        switch (filterType)
+        {
+            case DynamicEQ::FilterType::Bell:
+                bandGain = calculateBellResponse(frequency, point.frequency, point.gainDB, point.Q);
+                break;
+                
+            case DynamicEQ::FilterType::HighShelf:
+                bandGain = calculateHighShelfResponse(frequency, point.frequency, point.gainDB, point.Q);
+                break;
+                
+            case DynamicEQ::FilterType::LowShelf:
+                bandGain = calculateLowShelfResponse(frequency, point.frequency, point.gainDB, point.Q);
+                break;
+                
+            case DynamicEQ::FilterType::HighPass:
+                bandGain = calculateHighPassResponse(frequency, point.frequency, point.Q);
+                break;
+                
+            case DynamicEQ::FilterType::LowPass:
+                bandGain = calculateLowPassResponse(frequency, point.frequency, point.Q);
+                break;
+        }
+        
+        totalGain += bandGain;
+    }
+    
+    return totalGain;
 }
 
 // Filter response calculation methods
