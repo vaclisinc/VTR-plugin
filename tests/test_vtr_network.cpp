@@ -61,26 +61,29 @@ void testPrediction()
         throw std::runtime_error("Model loading failed");
     }
     
-    // Create test feature vector (17 dimensions)
+    // Use actual test vector from your training data
     std::vector<float> testFeatures = {
-        0.1f,        // RMS energy
-        1000.0f,     // Spectral centroid
-        5.0f,        // MFCC 1
-        8.0f,        // MFCC 2
-        3.0f,        // MFCC 3
-        2.0f,        // MFCC 4
-        1.5f,        // MFCC 5
-        1.0f,        // MFCC 6
-        1.0f,        // MFCC 7
-        0.8f,        // MFCC 8
-        0.7f,        // MFCC 9
-        0.6f,        // MFCC 10
-        0.5f,        // MFCC 11
-        0.4f,        // MFCC 12
-        0.4f,        // MFCC 13
-        500.0f,      // Spectral bandwidth
-        2000.0f      // Spectral rolloff
+        -0.11562023311853409f,
+        1.1053447723388672f,
+        0.8938038945198059f,
+        1.9258779287338257f,
+        -0.6831626892089844f,
+        0.5091536641120911f,
+        -1.8066099882125854f,
+        0.4456981420516968f,
+        -1.5267255306243896f,
+        0.6359248161315918f,
+        0.6453673839569092f,
+        -0.648241400718689f,
+        1.242024302482605f,
+        -1.6386936902999878f,
+        0.08051995933055878f,
+        0.18829967081546783f,
+        0.9597957730293274f
     };
+    
+    std::cout << "Using actual training data test vector" << std::endl;
+    std::cout << "Expected output from training: [21.69, 312.08, 126.56, -368.52, -105.29]" << std::endl;
     
     // Test prediction
     auto predictions = network.predict(testFeatures);

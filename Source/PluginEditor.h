@@ -147,16 +147,18 @@ private:
     
     // VTR components
     juce::TextButton loadReferenceButton;
-    juce::TextButton applyVTRButton;
     juce::Label vtrStatusLabel;
-    double vtrProgress = 0.0;
-    std::unique_ptr<juce::ProgressBar> vtrProgressBar;
+    // Remove ProgressBar to avoid lifecycle issues
+    // double vtrProgress = 0.0;
+    // std::unique_ptr<juce::ProgressBar> vtrProgressBar;
     std::unique_ptr<juce::FileChooser> fileChooser;
     
     // VTR callbacks
     void loadReferenceAudio();
     void applyVTRSettings();
     void updateVTRStatus();
+    void clearPreviousVTRSettings();
+    void applyVTRSettingsFromProcessing();
     
     // Layout and management
     void setupBandComponents();

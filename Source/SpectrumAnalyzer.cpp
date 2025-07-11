@@ -21,6 +21,11 @@ SpectrumAnalyzer::SpectrumAnalyzer()
     // Initialize VTR3 feature extraction
     latestFeatures.resize(TOTAL_FEATURES, 0.0f);
     featureUpdateInterval = static_cast<int>(UPDATE_RATE_HZ / featureUpdateRateHz);
+    
+    // Initialize Essentia feature extractor
+#ifdef HAVE_ESSENTIA
+    essentiaExtractor = std::make_unique<EssentiaFeatureExtractor>();
+#endif
 }
 
 void SpectrumAnalyzer::prepare(double sampleRateToUse, int samplesPerBlock)
@@ -42,6 +47,14 @@ void SpectrumAnalyzer::prepare(double sampleRateToUse, int samplesPerBlock)
     
     fifoIndex = 0;
     nextFFTBlockReady = false;
+    
+    // Prepare Essentia feature extractor
+#ifdef HAVE_ESSENTIA
+    if (essentiaExtractor)
+    {
+        essentiaExtractor->prepare(sampleRateToUse);
+    }
+#endif
 }
 
 void SpectrumAnalyzer::processBlock(const juce::AudioBuffer<float>& inputBuffer, const juce::AudioBuffer<float>& outputBuffer)
@@ -208,27 +221,124 @@ std::vector<float> SpectrumAnalyzer::getOutputSpectrum() const
 // VTR3 Feature extraction methods
 std::vector<float> SpectrumAnalyzer::extractFeatures(const std::vector<float>& audioData, double sampleRate)
 {
+    // Use Essentia-based feature extraction if available
+#ifdef HAVE_ESSENTIA
+    if (currentBackend == FeatureExtractionBackend::ESSENTIA_BASED && essentiaExtractor)
+    {
+        return essentiaExtractor->extractFeatures(audioData, sampleRate);
+    }
+#endif
+    
+    // Fall back to JUCE-based implementation
     std::vector<float> features(TOTAL_FEATURES);
     
-    // Extract RMS energy (index 0)
-    features[0] = extractRMSEnergy(audioData);
+    // Frame-by-frame processing like librosa
+    const int hopLength = 512;  // librosa default
+    const int frameSize = FFT_SIZE;
     
-    // Compute power spectrum for frequency-domain features
-    std::vector<float> powerSpectrum = computePowerSpectrum(audioData);
-    
-    // Extract spectral centroid (index 1)
-    features[1] = extractSpectralCentroid(powerSpectrum, sampleRate);
-    
-    // Extract MFCC coefficients (indices 2-14)
-    std::vector<float> mfccCoeffs = extractMFCC(powerSpectrum, sampleRate);
-    for (int i = 0; i < NUM_MFCC_COEFFS && i < static_cast<int>(mfccCoeffs.size()); ++i)
+    // Calculate number of frames
+    int numFrames = 0;
+    if (audioData.size() >= frameSize)
     {
-        features[2 + i] = mfccCoeffs[i];
+        numFrames = (audioData.size() - frameSize) / hopLength + 1;
     }
     
-    // Add two additional features (spectral bandwidth and rolloff)
-    features[15] = extractSpectralBandwidth(powerSpectrum, sampleRate);
-    features[16] = extractSpectralRolloff(powerSpectrum, sampleRate);
+    if (numFrames == 0)
+    {
+        // Not enough data, return zeros
+        std::fill(features.begin(), features.end(), 0.0f);
+        return features;
+    }
+    
+    // Collect features from all frames
+    std::vector<float> allSpectralCentroids;
+    std::vector<float> allSpectralBandwidths;
+    std::vector<float> allSpectralRolloffs;
+    std::vector<float> allRMSValues;
+    std::vector<std::vector<float>> allMFCCFrames;
+    
+    for (int frameIdx = 0; frameIdx < numFrames; ++frameIdx)
+    {
+        int startIdx = frameIdx * hopLength;
+        
+        // Extract frame
+        std::vector<float> frame(frameSize, 0.0f);
+        for (int i = 0; i < frameSize && (startIdx + i) < audioData.size(); ++i)
+        {
+            frame[i] = audioData[startIdx + i];
+        }
+        
+        // Calculate RMS for this frame
+        float frameRMS = extractRMSEnergy(frame);
+        allRMSValues.push_back(frameRMS);
+        
+        // Compute power spectrum for this frame
+        std::vector<float> powerSpectrum = computePowerSpectrum(frame);
+        
+        // Extract spectral features for this frame
+        float centroid = extractSpectralCentroid(powerSpectrum, sampleRate);
+        float bandwidth = extractSpectralBandwidth(powerSpectrum, sampleRate);
+        float rolloff = extractSpectralRolloff(powerSpectrum, sampleRate);
+        
+        allSpectralCentroids.push_back(centroid);
+        allSpectralBandwidths.push_back(bandwidth);
+        allSpectralRolloffs.push_back(rolloff);
+        
+        // Extract MFCC for this frame
+        std::vector<float> mfccFrame = extractMFCC(powerSpectrum, sampleRate);
+        allMFCCFrames.push_back(mfccFrame);
+    }
+    
+    // Average RMS across all frames (index 0)
+    float avgRMS = 0.0f;
+    for (float rms : allRMSValues)
+    {
+        avgRMS += rms;
+    }
+    avgRMS /= allRMSValues.size();
+    features[0] = avgRMS;
+    
+    // Average spectral centroid across all frames (index 1)
+    float avgCentroid = 0.0f;
+    for (float centroid : allSpectralCentroids)
+    {
+        avgCentroid += centroid;
+    }
+    avgCentroid /= allSpectralCentroids.size();
+    features[1] = avgCentroid;
+    
+    // Average MFCC coefficients across all frames (indices 2-14)
+    for (int mfccIdx = 0; mfccIdx < NUM_MFCC_COEFFS; ++mfccIdx)
+    {
+        float avgMFCC = 0.0f;
+        for (const auto& mfccFrame : allMFCCFrames)
+        {
+            if (mfccIdx < mfccFrame.size())
+            {
+                avgMFCC += mfccFrame[mfccIdx];
+            }
+        }
+        avgMFCC /= allMFCCFrames.size();
+        features[2 + mfccIdx] = avgMFCC;
+    }
+    
+    // Average spectral bandwidth across all frames (index 15)
+    float avgBandwidth = 0.0f;
+    for (float bandwidth : allSpectralBandwidths)
+    {
+        avgBandwidth += bandwidth;
+    }
+    avgBandwidth /= allSpectralBandwidths.size();
+    features[15] = avgBandwidth;
+    
+    // Average spectral rolloff across all frames (index 16)
+    float avgRolloff = 0.0f;
+    for (float rolloff : allSpectralRolloffs)
+    {
+        avgRolloff += rolloff;
+    }
+    avgRolloff /= allSpectralRolloffs.size();
+    features[16] = avgRolloff;
     
     return features;
 }
@@ -255,8 +365,9 @@ float SpectrumAnalyzer::extractSpectralCentroid(const std::vector<float>& powerS
     
     for (size_t i = 1; i < powerSpectrum.size(); ++i) // Start from 1 to skip DC
     {
-        // Convert bin index to frequency
-        double frequency = (i * sampleRate) / (2.0 * powerSpectrum.size());
+        // Convert bin index to frequency - librosa uses: freq = i * sr / n_fft
+        // powerSpectrum.size() should be FFT_SIZE/2 + 1 = 1025 for FFT_SIZE=2048
+        double frequency = (i * sampleRate) / FFT_SIZE;
         
         // Weight by power and frequency
         double power = powerSpectrum[i];
@@ -278,8 +389,8 @@ float SpectrumAnalyzer::extractSpectralBandwidth(const std::vector<float>& power
     
     for (size_t i = 1; i < powerSpectrum.size(); ++i) // Start from 1 to skip DC
     {
-        // Convert bin index to frequency
-        double frequency = (i * sampleRate) / (2.0 * powerSpectrum.size());
+        // Convert bin index to frequency - librosa uses: freq = i * sr / n_fft
+        double frequency = (i * sampleRate) / FFT_SIZE;
         
         // Calculate variance from centroid
         double power = powerSpectrum[i];
@@ -314,8 +425,8 @@ float SpectrumAnalyzer::extractSpectralRolloff(const std::vector<float>& powerSp
         
         if (cumulativeEnergy >= energyThreshold)
         {
-            // Convert bin index to frequency
-            double frequency = (i * sampleRate) / (2.0 * powerSpectrum.size());
+            // Convert bin index to frequency - librosa uses: freq = i * sr / n_fft
+            double frequency = (i * sampleRate) / FFT_SIZE;
             return static_cast<float>(frequency);
         }
     }
@@ -340,17 +451,21 @@ std::vector<float> SpectrumAnalyzer::computeMelFilterbank(const std::vector<floa
 {
     std::vector<float> melEnergies(NUM_MEL_FILTERS, 0.0f);
     
-    // Frequency range for mel filters (0 Hz to Nyquist)
-    double maxFreq = sampleRate / 2.0;
+    // Frequency range for mel filters - using librosa defaults
+    double minFreq = FMIN;         // 0.0 Hz
+    double maxFreq = FMAX;         // 22050.0 Hz (or sampleRate/2 if smaller)
+    maxFreq = std::min(maxFreq, sampleRate / 2.0);
     
     // Convert to mel scale
-    float minMel = melScale(0.0f);
+    float minMel = melScale(minFreq);
     float maxMel = melScale(maxFreq);
     
-    // Create mel filter bank
+    // Create mel filter bank - librosa uses NUM_MEL_FILTERS + 2 points
+    // to define NUM_MEL_FILTERS triangular filters
     for (int m = 0; m < NUM_MEL_FILTERS; ++m)
     {
         // Calculate mel frequencies for this filter
+        // librosa creates n_mels + 2 points to define n_mels triangular filters
         float leftMel = minMel + (m * (maxMel - minMel)) / (NUM_MEL_FILTERS + 1);
         float centerMel = minMel + ((m + 1) * (maxMel - minMel)) / (NUM_MEL_FILTERS + 1);
         float rightMel = minMel + ((m + 2) * (maxMel - minMel)) / (NUM_MEL_FILTERS + 1);
@@ -360,10 +475,10 @@ std::vector<float> SpectrumAnalyzer::computeMelFilterbank(const std::vector<floa
         float centerFreq = invMelScale(centerMel);
         float rightFreq = invMelScale(rightMel);
         
-        // Convert frequencies to bin indices
-        int leftBin = static_cast<int>((leftFreq * 2.0f * powerSpectrum.size()) / sampleRate);
-        int centerBin = static_cast<int>((centerFreq * 2.0f * powerSpectrum.size()) / sampleRate);
-        int rightBin = static_cast<int>((rightFreq * 2.0f * powerSpectrum.size()) / sampleRate);
+        // Convert frequencies to bin indices - librosa uses: bin = freq * n_fft / sr
+        int leftBin = static_cast<int>((leftFreq * FFT_SIZE) / sampleRate);
+        int centerBin = static_cast<int>((centerFreq * FFT_SIZE) / sampleRate);
+        int rightBin = static_cast<int>((rightFreq * FFT_SIZE) / sampleRate);
         
         // Ensure bins are within bounds
         leftBin = std::max(0, std::min(leftBin, static_cast<int>(powerSpectrum.size()) - 1));
@@ -404,8 +519,9 @@ std::vector<float> SpectrumAnalyzer::computeDCT(const std::vector<float>& melEne
     std::vector<float> dctCoeffs(NUM_MFCC_COEFFS, 0.0f);
     
     const int N = melEnergies.size();
-    const float sqrt2OverN = std::sqrt(2.0f / N);
     
+    // librosa uses DCT type-II with 'ortho' normalization
+    // scipy.fftpack.dct(x, type=2, norm='ortho')
     for (int k = 0; k < NUM_MFCC_COEFFS; ++k)
     {
         double sum = 0.0;
@@ -416,7 +532,18 @@ std::vector<float> SpectrumAnalyzer::computeDCT(const std::vector<float>& melEne
             sum += melEnergies[n] * std::cos(angle);
         }
         
-        dctCoeffs[k] = sqrt2OverN * sum;
+        // Apply orthogonal normalization (librosa default)
+        float norm_factor;
+        if (k == 0)
+        {
+            norm_factor = std::sqrt(1.0f / N);  // First coefficient
+        }
+        else
+        {
+            norm_factor = std::sqrt(2.0f / N);  // Other coefficients
+        }
+        
+        dctCoeffs[k] = norm_factor * sum;
     }
     
     return dctCoeffs;
@@ -455,10 +582,19 @@ std::vector<float> SpectrumAnalyzer::computePowerSpectrum(const std::vector<floa
     fft.performFrequencyOnlyForwardTransform(fftData.data());
     
     // Convert to power spectrum (magnitude squared)
-    std::vector<float> powerSpectrum(FFT_SIZE / 2);
-    for (int i = 0; i < FFT_SIZE / 2; ++i)
+    // JUCE's performFrequencyOnlyForwardTransform returns magnitude values
+    // For librosa compatibility, we need magnitude squared (power)
+    std::vector<float> powerSpectrum(FFT_SIZE / 2 + 1);  // +1 for DC and Nyquist
+    for (int i = 0; i < FFT_SIZE / 2 + 1; ++i)
     {
-        powerSpectrum[i] = fftData[i] * fftData[i];
+        if (i < FFT_SIZE / 2)
+        {
+            powerSpectrum[i] = fftData[i] * fftData[i];  // magnitude^2 = power
+        }
+        else
+        {
+            powerSpectrum[i] = 0.0f;  // Nyquist bin
+        }
     }
     
     return powerSpectrum;
@@ -512,4 +648,22 @@ void SpectrumAnalyzer::setFeatureUpdateRate(float rateHz)
     // Assuming FFT updates at UPDATE_RATE_HZ (30Hz)
     featureUpdateInterval = static_cast<int>(UPDATE_RATE_HZ / rateHz);
     featureUpdateInterval = std::max(1, featureUpdateInterval); // At least every FFT
+}
+
+void SpectrumAnalyzer::setFeatureExtractionBackend(FeatureExtractionBackend backend)
+{
+#ifdef HAVE_ESSENTIA
+    currentBackend = backend;
+    
+    // Initialize Essentia extractor if switching to Essentia backend
+    if (backend == FeatureExtractionBackend::ESSENTIA_BASED && !essentiaExtractor)
+    {
+        essentiaExtractor = std::make_unique<EssentiaFeatureExtractor>();
+        essentiaExtractor->prepare(sampleRate);
+    }
+#else
+    // Force JUCE backend if Essentia not available
+    currentBackend = FeatureExtractionBackend::JUCE_BASED;
+    juce::ignoreUnused(backend);
+#endif
 }

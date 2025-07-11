@@ -631,7 +631,18 @@ bool VaclisDynamicEQAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* VaclisDynamicEQAudioProcessor::createEditor()
 {
-    return new VaclisDynamicEQAudioProcessorEditor (*this);
+    DBG("Creating editor - attempting to instantiate VaclisDynamicEQAudioProcessorEditor");
+    try {
+        auto* editor = new VaclisDynamicEQAudioProcessorEditor(*this);
+        DBG("VaclisDynamicEQAudioProcessorEditor created successfully");
+        return editor;
+    } catch (const std::exception& e) {
+        DBG("Exception creating editor: " << e.what());
+        return nullptr;
+    } catch (...) {
+        DBG("Unknown exception creating editor");
+        return nullptr;
+    }
 }
 
 void VaclisDynamicEQAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
@@ -792,7 +803,7 @@ void VaclisDynamicEQAudioProcessor::applyVTRPredictions(const std::vector<float>
         // Set filter type to Bell
         if (auto* typeParam = parameters.getParameter("eq_type_band" + juce::String(band)))
         {
-            typeParam->setValueNotifyingHost(typeParam->convertTo0to1(1.0f)); // Bell filter
+            typeParam->setValueNotifyingHost(typeParam->convertTo0to1(0.0f)); // Bell filter (index 0)
         }
     }
     

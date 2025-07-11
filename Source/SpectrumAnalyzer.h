@@ -5,6 +5,10 @@
 #include <array>
 #include <atomic>
 
+#ifdef HAVE_ESSENTIA
+#include "VTR/EssentiaFeatureExtractor.h"
+#endif
+
 class SpectrumAnalyzer
 {
 public:
@@ -42,10 +46,22 @@ public:
     static constexpr float UPDATE_RATE_HZ = 30.0f;
     static constexpr float PEAK_HOLD_TIME_SECONDS = 2.0f;
     
-    // VTR3 Feature extraction constants
-    static constexpr int NUM_MEL_FILTERS = 26;
+    // VTR3 Feature extraction constants - matching librosa defaults
+    static constexpr int NUM_MEL_FILTERS = 128;  // librosa default
     static constexpr int NUM_MFCC_COEFFS = 13;
     static constexpr int TOTAL_FEATURES = 17; // 13 MFCC + 1 spectral centroid + 1 RMS + 2 additional
+    static constexpr double FMIN = 0.0;          // librosa default
+    static constexpr double FMAX = 22050.0;      // librosa default (sr/2)
+    
+    // Feature extraction backend selection
+    enum class FeatureExtractionBackend
+    {
+        JUCE_BASED,
+        ESSENTIA_BASED
+    };
+    
+    void setFeatureExtractionBackend(FeatureExtractionBackend backend);
+    FeatureExtractionBackend getFeatureExtractionBackend() const { return currentBackend; }
     
 private:
     void performFFT(const juce::AudioBuffer<float>& buffer, std::vector<float>& spectrumData);
@@ -88,6 +104,14 @@ private:
     float featureUpdateRateHz = 10.0f; // 10 Hz default
     int featureUpdateCounter = 0;
     int featureUpdateInterval = 1;
+    
+    // Feature extraction backend
+#ifdef HAVE_ESSENTIA
+    FeatureExtractionBackend currentBackend = FeatureExtractionBackend::ESSENTIA_BASED;
+    std::unique_ptr<EssentiaFeatureExtractor> essentiaExtractor;
+#else
+    FeatureExtractionBackend currentBackend = FeatureExtractionBackend::JUCE_BASED;
+#endif
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SpectrumAnalyzer)
 };

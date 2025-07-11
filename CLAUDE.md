@@ -1,18 +1,11 @@
 # 🚨 AGENT README - READ THIS FIRST!
 
-## Project Overview
-This is the VTR-plugin integration project - integrating Vaclis Tone Replication model (github.com/vaclisinc/vaclis_tone_replication) with the existing plugin architecture.
+## Your Workflow
+1. Read this file
+2. Check `agent/progress-tracker.md` for current status
+3. step by step follow the implementation plan in tracker
+4. document the modification in ./debug-doc for trace code
 
-## File Structure
-```
-agent/
-├── PROJECT-ROADMAP.md       # The VTR integration roadmap
-├── progress-tracker.md      # Current status
-└── requirements-template.md # Questions to ask user
-CLAUDE.md                    # This file (quick start guide)
-docs/                        # Step documentation goes here
-Source/                      # All code goes here
-```
 
 # How To Contribute
 
@@ -27,7 +20,6 @@ Before you create or modify code **in any way**, you **MUST**:
 ### Note About Assumptions
 
 - **NEVER** assume you know how to implement or debug a feature without first researching via Context7 MCP.
-
 **_The correct Context7 Library ID for JUCE is /juce-framework/juce_**
 
 ---
@@ -87,48 +79,3 @@ Before any other checklist task runs the assistant **must**:
 If any step fails, **abort the checklist** and ask Lex for guidance.
 
 ---
-
-## GUI & Front-end Design ( JUCE Components Only )
-
-1. **Layout rules**
-
-   - Use JUCE `FlexBox` or `Grid` for all primary layouts; avoid absolute pixel positioning except for micro-alignments.
-   - Maintain **8 px** internal padding and **16 px** between unrelated control groups.
-   - No component may overlap another at any window size; verify with `Component::getBounds()` in GUI tests.
-
-2. **Look & Feel**
-
-   - Derive a custom `LookAndFeel_V4` subclass for consistent colours, fonts, and knob/slider skins.
-   - Respect OS Hi-DPI scaling (JUCE handles per-display scale factors for you)—never hard-code pixel sizes that break on retina/4K monitors.
-
-3. **Z-ordering**
-
-   - Call `toFront()` or `setAlwaysOnTop()` _only_ for modal pop-ups; otherwise rely on natural child order.
-   - Run GUI unit test `z_order_test.cpp` to assert interactive components are not obscured.
-
-4. **Responsiveness**
-
-   - All plug-ins must be **resizable**. Handle `resized()` to recompute layout via FlexBox/Grid; avoid magic numbers.
-   - Target 60 fps GUI repaint budget; throttle `repaint()` on meters/visualisers (max 30 Hz).
-
-5. **Accessibility & usability**
-
-   - Minimum text size: **11 pt** at 100 % scale.
-   - Sliders/knobs must include a `TooltipWindow` description and keyboard focus traversal.
-   - Colour-contrast ratio ≥ 4.5:1 for text vs. background.
-
-6. **Automated GUI checks**
-
-   - Every build runs `tests/gui_layout_test.cpp` to assert:
-     1. No overlapping bounds.
-     2. All interactive components fit within the parent window.
-     3. Z-order of active controls is unobstructed.
-   - Fail CI if any assertion fails.
-
-7. **Performance guard-rails**
-   - Avoid `repaint()` inside `sliderValueChanged`; instead set a flag and repaint in a timer callback (`Timer::startTimerHz (30)`).
-   - Use `PathStrokeType::mitered` only for static SVG paths; prefer `renderCachedImage()` for repeated vector drawings.
-
----
-
-Follow these rules and the automated pipeline will catch crashes, silence, and CPU spikes **before** you ever open the plug‑in in a DAW.
