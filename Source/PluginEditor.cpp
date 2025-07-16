@@ -36,9 +36,7 @@ void BandControlComponent::setupComponents()
     enableButton.setToggleable(true);
     enableButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::green);
     enableButton.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-    
-    // Set default toggle state before adding
-    enableButton.setToggleState(false, juce::dontSendNotification);
+    enableButton.setClickingTogglesState(true);
     addAndMakeVisible(enableButton);
     
     // Solo button
@@ -46,9 +44,7 @@ void BandControlComponent::setupComponents()
     soloButton.setToggleable(true);
     soloButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::yellow);
     soloButton.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-    
-    // Set default toggle state before adding
-    soloButton.setToggleState(false, juce::dontSendNotification);
+    soloButton.setClickingTogglesState(true);
     addAndMakeVisible(soloButton);
     
     // EQ sliders
