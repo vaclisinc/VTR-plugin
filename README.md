@@ -2,6 +2,7 @@
 
 A smart dynamic EQ plugin with AI-powered Vocal Tone Recognition (VTR) for automatic EQ settings based on reference audio analysis.
 
+![VTR-smartEQ preview](https://raw.githubusercontent.com/vaclisinc/VTR-plugin/b6108b48426ac23cf7d8ee835bbb6c0641afdd4e/fiinish.gif)
 ## Features
 
 ### 1.  5-Band Dynamic EQ
