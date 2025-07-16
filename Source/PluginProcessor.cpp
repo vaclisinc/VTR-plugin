@@ -899,9 +899,26 @@ void VaclisDynamicEQAudioProcessor::applyVTRPredictions(const std::vector<float>
         {
             typeParam->setValueNotifyingHost(typeParam->convertTo0to1(0.0f)); // Bell filter (index 0)
         }
+        
+        // Enable the band to make the setting visible
+        if (auto* enableParam = parameters.getParameter("eq_enable_band" + juce::String(band)))
+        {
+            enableParam->setValueNotifyingHost(1.0f); // Enable the band
+        }
     }
     
-    juce::Logger::writeToLog("VTR predictions applied to EQ parameters");
+    juce::Logger::writeToLog("VTR predictions applied to EQ parameters - all bands enabled");
+    
+    // Force parameter manager update to ensure all changes are reflected
+    parameterManager.updateAllTargets();
+    
+    // Notify editor to refresh display (on main thread)
+    juce::MessageManager::callAsync([this]() {
+        if (auto* editor = getActiveEditor())
+        {
+            editor->repaint();
+        }
+    });
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

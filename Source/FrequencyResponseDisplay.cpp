@@ -126,6 +126,7 @@ void FrequencyResponseDisplay::paint(juce::Graphics& g)
         {
             g.setColour(getBandColour(band));
             
+            
             if (point.isHovered || draggingBandIndex == band)
             {
                 // Draw highlighted point
@@ -188,9 +189,12 @@ void FrequencyResponseDisplay::parameterChanged(const juce::String& parameterID,
     // When any EQ parameter changes, invalidate cache and update display
     if (parameterID.startsWith("eq_"))
     {
+        // Force immediate update from parameters
+        updateEQPointsFromParameters();
         invalidateResponseCache();
         updateEQPointScreenPositions();
         repaint();
+        
     }
 }
 
