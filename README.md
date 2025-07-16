@@ -2,7 +2,7 @@
 
 An dynamic EQ plugin integrating AI-powered Tone Replication model ([VTR](https://github.com/vaclisinc/Vaclis_Tone_Replication/)) for automatic EQ settings based on reference audio analysis.
 
-![VTR-smartEQ preview](https://raw.githubusercontent.com/vaclisinc/VTR-plugin/02ba630884a4365ddbfc4f2a6881eebcd5de0ec7/finish.gif)
+![VTR-smartEQ preview](https://raw.githubusercontent.com/vaclisinc/VTR-smartEQ/43ab351f3b64555691a31cb9854238d170dd4448/finish.gif)
 
 ## Features
 
@@ -19,7 +19,7 @@ An dynamic EQ plugin integrating AI-powered Tone Replication model ([VTR](https:
 
 ## Installation
 
-1. Download the latest release from the [Releases](https://github.com/vaclisinc/VTR-plugin/releases) page
+1. Download the latest release from the [Releases](https://github.com/vaclisinc/VTR-smartEQ/releases) page
 2. Express the zip file and copy the plugin to your system's plugin folder:
    - **VST3**: `~/Library/Audio/Plug-Ins/VST3/`
    - **AU**: `~/Library/Audio/Plug-Ins/Components/`
@@ -61,8 +61,8 @@ An dynamic EQ plugin integrating AI-powered Tone Replication model ([VTR](https:
 ### Build Steps
 ```bash
 # Clone the repository
-git clone --recursive https://github.com/vaclisinc/VTR-plugin.git
-cd VTR-plugin
+git clone --recursive https://github.com/vaclisinc/VTR-smartEQ.git
+cd VTR-smartEQ
 
 # Create build directory
 mkdir build && cd build

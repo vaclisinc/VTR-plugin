@@ -1,5 +1,5 @@
 # Open Source Machine Learning Audio Processing Repositories
-## Research Report for VTR-plugin Integration
+## Research Report for VTR-smartEQ Integration
 
 *Generated on: 2025-07-10*
 
@@ -271,7 +271,7 @@ This research report identifies high-quality open source repositories related to
 
 ## Summary and Recommendations
 
-### Top Recommendations for VTR-plugin Integration:
+### Top Recommendations for VTR-smartEQ Integration:
 
 1. **RTNeural** - Essential for real-time neural network inference
 2. **Neural Amp Modeler** - Best practices for audio ML plugin architecture
@@ -297,4 +297,4 @@ This research report identifies high-quality open source repositories related to
 
 ---
 
-*This research provides a solid foundation for integrating machine learning into the VTR-plugin project, with multiple proven examples of successful real-time audio ML implementations.*
+*This research provides a solid foundation for integrating machine learning into the VTR-smartEQ project, with multiple proven examples of successful real-time audio ML implementations.*
