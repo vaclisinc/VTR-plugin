@@ -894,10 +894,26 @@ void VaclisDynamicEQAudioProcessor::applyVTRPredictions(const std::vector<float>
             qParam->setValueNotifyingHost(qParam->convertTo0to1(1.0f)); // Q = 1.0
         }
         
-        // Set filter type to Bell
+        // Set appropriate filter type based on frequency range
         if (auto* typeParam = parameters.getParameter("eq_type_band" + juce::String(band)))
         {
-            typeParam->setValueNotifyingHost(typeParam->convertTo0to1(0.0f)); // Bell filter (index 0)
+            int filterType = 0; // Default to Bell
+            
+            // Set filter types based on VTR frequency targets
+            if (targetFreqs[band] <= 150.0f)          // 80Hz (SUB) - Low Shelf
+            {
+                filterType = 2; // LowShelf
+            }
+            else if (targetFreqs[band] >= 6000.0f)    // 10kHz (HIGH) - High Shelf  
+            {
+                filterType = 1; // HighShelf
+            }
+            else                                       // 240Hz, 2.5kHz, 4kHz (LOW, MID, HIGH-MID) - Bell
+            {
+                filterType = 0; // Bell
+            }
+            
+            typeParam->setValueNotifyingHost(typeParam->convertTo0to1(static_cast<float>(filterType)));
         }
         
         // Enable the band to make the setting visible
