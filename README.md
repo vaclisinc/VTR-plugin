@@ -1,98 +1,57 @@
 # VTR-smartEQ
 
-A smart dynamic EQ plugin with AI-powered Vocal Tone Recognition (VTR) for automatic EQ settings based on reference audio analysis.
+An dynamic EQ plugin integrating AI-powered Tone Replication model ([VTR](https://github.com/vaclisinc/Vaclis_Tone_Replication/)) for automatic EQ settings based on reference audio analysis.
 
-![VTR-smartEQ preview](https://raw.githubusercontent.com/vaclisinc/VTR-plugin/b6108b48426ac23cf7d8ee835bbb6c0641afdd4e/fiinish.gif)
+![VTR-smartEQ preview](https://raw.githubusercontent.com/vaclisinc/VTR-plugin/02ba630884a4365ddbfc4f2a6881eebcd5de0ec7/finish.gif)
+
 ## Features
 
-### 1.  5-Band Dynamic EQ
-- **Frequency Bands**: SUB (20-150Hz), LOW (150-400Hz), MID (400-3kHz), HIGH-MID (3-6kHz), HIGH (6-20kHz)
-- **Filter Types**: Bell, High Shelf, Low Shelf, High Pass, Low Pass
-- **Dynamic Processing**: Per-band compression/expansion with sidechain support
-- **Solo/Mute**: Exclusive solo mode with EN state restoration
-
-### 2. AI-Powered VTR (Vaclis Tone Replication)
-- **Automatic EQ Matching**: Analyzes reference audio and applies optimal EQ settings
-- **Neural Network**: Custom-trained model for vocal tone analysis
-- **One-Click Operation**: Load reference → Apply VTR → Done
-
-### 3. Visual Feedback
-- **Real-time Spectrum Analyzer**: Dual spectrum display (input/output)
-- **Frequency Response Display**: Interactive EQ curve with draggable points
-- **Level Meters**: Input/output VU meters
-- **Filter Type Indicators**: Visual feedback for active filter types
-
-### 🔌 Plugin Formats
-- VST3
-- AU (Audio Unit)
+- **5-Band Dynamic EQ**: SUB, LOW, MID, HIGH-MID, HIGH frequency bands with multiple filter types
+- **AI-Powered VTR**: Automatic EQ matching based on reference audio analysis
+- **Real-time Visualization**: Spectrum analyzer and frequency response display
+- **Plugin Formats**: VST3, AU (Audio Unit)
 
 ## System Requirements
 
 - **OS**: macOS 10.13+ (Intel/Apple Silicon)
 - **DAW**: Any VST3 or AU compatible host
 - **Python**: 3.8+ (for VTR feature extraction)
-- **Dependencies**: NumPy, SciPy, Librosa (automatically handled)
 
 ## Installation
 
-1. Download the latest release from the [Releases](https://github.com/yourusername/VTR-plugin/releases) page
-2. Copy the plugin to your system's plugin folder:
+1. Download the latest release from the [Releases](https://github.com/vaclisinc/VTR-plugin/releases) page
+2. Express the zip file and copy the plugin to your system's plugin folder:
    - **VST3**: `~/Library/Audio/Plug-Ins/VST3/`
    - **AU**: `~/Library/Audio/Plug-Ins/Components/`
 3. Restart your DAW and scan for new plugins
 
-## Usage
+## Usage Instructions
+
+### Using VTR (Vaclis Tone Replication)
+
+1. **Click "Load Reference & Apply VTR" to upload audio file**
+   - Select reference audio file (supports WAV, MP3, FLAC, AIFF, M4A)
+   - **Recommended to keep audio length short (<8s)** for better results
+   - This model uses feature extraction as input, longer audio files may cause information confusion
+
+2. **Wait for processing and automatic application**
+   - Wait a moment for the system to automatically analyze and apply to the plugin
+   - You can make any additional EQ adjustments to meet your specific goals
 
 ### Basic EQ Operation
+
 1. Load the plugin on your track
 2. Enable bands using the EN buttons
 3. Adjust frequency, gain, and Q for each band
 4. Select filter types (Bell, Shelf, Pass) as needed
 
-### Using VTR (Vocal Tone Recognition)
-1. Click "Load Reference & Apply VTR"
-2. Select a reference audio file (WAV, MP3, FLAC, AIFF, M4A)
-3. Wait for analysis (typically 2-5 seconds)
-4. VTR automatically applies optimal EQ settings
-
 ### Dynamic Processing
+
 1. Click the dynamics toggle button (↓) on any band
-2. Adjust threshold, ratio, attack, release, and knee
-3. Choose detection type (Peak/RMS/Blend)
-4. Select mode (Compressive/Expansive/De-esser/Gate)
+2. Adjust threshold, ratio, attack, release parameters
+3. Choose detection type and processing mode
 
-### Solo Mode
-- Click SOLO to isolate a band
-- Other bands are automatically muted
-- Original EN states are restored when solo is disabled
-
-## Technical Details
-
-### VTR Model Architecture
-- **Feature Extraction**: 193-dimensional feature vector including:
-  - Spectral features (centroid, rolloff, flux, etc.)
-  - Tonal features (chroma, tonnetz)
-  - Rhythm features (tempo, onset strength)
-  - Statistical features (mean, variance, skewness, kurtosis)
-- **Neural Network**: 3-layer MLP (193→128→64→5)
-- **Output**: 5 gain predictions for each frequency band
-
-### Audio Processing
-- **Sample Rates**: 44.1kHz, 48kHz, 96kHz
-- **Buffer Sizes**: 64-2048 samples
-- **Latency**: 0 samples (no lookahead)
-- **Processing**: 64-bit internal precision
-
-### Dependencies
-- JUCE Framework 7.0.5+
-- chowdsp_utils (DSP utilities)
-- Python 3.8+ with:
-  - NumPy
-  - SciPy
-  - Librosa
-  - scikit-learn
-
-## Building from Source
+## Building from Source code
 
 ### Prerequisites
 - CMake 3.22+
@@ -108,19 +67,9 @@ cd VTR-plugin
 # Create build directory
 mkdir build && cd build
 
-# Configure with CMake
+# Configure and build
 cmake -DCMAKE_BUILD_TYPE=Release ..
-
-# Build
 cmake --build . --config Release
-
-# Plugins will be automatically installed to system folders
-```
-
-### Testing
-```bash
-# Run validation tests
-pluginval --strictness 5 --validate-in-process ~/Library/Audio/Plug-Ins/VST3/VTR-smartEQ.vst3
 ```
 
 ## Troubleshooting
@@ -134,20 +83,6 @@ pluginval --strictness 5 --validate-in-process ~/Library/Audio/Plug-Ins/VST3/VTR
 - Rescan plugins in your DAW
 - Check plugin format compatibility
 - Verify installation path is correct
-
-### Audio Glitches
-- Increase buffer size in DAW
-- Disable other CPU-intensive plugins
-- Check sample rate compatibility
-
-## Contributing
-
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests with pluginval
-5. Submit a pull request
 
 ## License
 
