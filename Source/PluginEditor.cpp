@@ -111,6 +111,14 @@ void BandControlComponent::setupComponents()
     soloAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
         audioProcessor.getValueTreeState(), "eq_solo_band" + bandSuffix, soloButton);
     
+    // Initialize filter type button state from current parameter value
+    juce::String typeParamID = "eq_type_band" + bandSuffix;
+    if (auto* typeParam = audioProcessor.getValueTreeState().getParameter(typeParamID))
+    {
+        int currentFilterType = static_cast<int>(typeParam->getValue() * 4.0f + 0.5f); // 5 types: 0-4
+        updateFilterTypeButtonStates(currentFilterType);
+    }
+    
     // Remove async call that could cause crashes during destruction
     // Initial layout will be handled by the normal component lifecycle
 }
@@ -937,4 +945,18 @@ void VaclisDynamicEQAudioProcessorEditor::applyVTRSettingsFromProcessing()
     // Just update the UI status
     vtrStatusLabel.setText("VTR Applied", juce::dontSendNotification);
     loadReferenceButton.setEnabled(true);
+    
+    // Force update filter type button states for all bands
+    for (int band = 0; band < DynamicEQ::CURRENT_BANDS; ++band)
+    {
+        juce::String typeParamID = "eq_type_band" + juce::String(band);
+        if (auto* typeParam = audioProcessor.getValueTreeState().getParameter(typeParamID))
+        {
+            int filterType = static_cast<int>(typeParam->getValue() * 4.0f + 0.5f);
+            if (bandComponents[band])
+            {
+                bandComponents[band]->updateFilterTypeButtonStates(filterType);
+            }
+        }
+    }
 }
