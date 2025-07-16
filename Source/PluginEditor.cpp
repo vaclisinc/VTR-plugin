@@ -2,6 +2,11 @@
 #include "PluginEditor.h"
 
 //==============================================================================
+// BandControlComponent Static Members
+std::array<bool, 5> BandControlComponent::savedEnableStates = {true, true, true, true, true};
+bool BandControlComponent::anySoloed = false;
+
+//==============================================================================
 // BandControlComponent Implementation
 
 BandControlComponent::BandControlComponent(int bandIdx, const juce::String& name, 
@@ -215,10 +220,59 @@ void BandControlComponent::handleSoloButtonClick()
         // Toggle this band's solo state
         soloParam->setValueNotifyingHost(willBeSoloed);
         
-        // Handle exclusive solo behavior
         if (willBeSoloed)
         {
-            // Save current enable states and disable other bands
+            // If no band was soloed before, save all current EN states
+            if (!anySoloed)
+            {
+                for (int i = 0; i < 5; ++i)
+                {
+                    juce::String enableID = "eq_enable_band" + juce::String(i);
+                    if (auto* enableParam = dynamic_cast<juce::AudioParameterBool*>(
+                        audioProcessor.getValueTreeState().getParameter(enableID)))
+                    {
+                        savedEnableStates[i] = enableParam->get();
+                    }
+                }
+            }
+            
+            // Turn off other solos and disable other bands
+            for (int i = 0; i < 5; ++i)
+            {
+                if (i != bandIndex)
+                {
+                    // Turn off other solos
+                    juce::String otherSoloID = "eq_solo_band" + juce::String(i);
+                    if (auto* otherSoloParam = dynamic_cast<juce::AudioParameterBool*>(
+                        audioProcessor.getValueTreeState().getParameter(otherSoloID)))
+                    {
+                        otherSoloParam->setValueNotifyingHost(false);
+                    }
+                    
+                    // Disable other bands (turn off EN)
+                    juce::String enableID = "eq_enable_band" + juce::String(i);
+                    if (auto* enableParam = dynamic_cast<juce::AudioParameterBool*>(
+                        audioProcessor.getValueTreeState().getParameter(enableID)))
+                    {
+                        enableParam->setValueNotifyingHost(false);
+                    }
+                }
+            }
+            
+            // Make sure this band is enabled
+            juce::String thisEnableID = "eq_enable_band" + juce::String(bandIndex);
+            if (auto* thisEnableParam = dynamic_cast<juce::AudioParameterBool*>(
+                audioProcessor.getValueTreeState().getParameter(thisEnableID)))
+            {
+                thisEnableParam->setValueNotifyingHost(true);
+            }
+            
+            anySoloed = true;
+        }
+        else
+        {
+            // Check if any other band is still soloed
+            bool stillAnySoloed = false;
             for (int i = 0; i < 5; ++i)
             {
                 if (i != bandIndex)
@@ -227,8 +281,26 @@ void BandControlComponent::handleSoloButtonClick()
                     if (auto* otherSoloParam = dynamic_cast<juce::AudioParameterBool*>(
                         audioProcessor.getValueTreeState().getParameter(otherSoloID)))
                     {
-                        // Turn off other solos
-                        otherSoloParam->setValueNotifyingHost(false);
+                        if (otherSoloParam->get())
+                        {
+                            stillAnySoloed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // If no band is soloed anymore, restore saved EN states
+            if (!stillAnySoloed)
+            {
+                anySoloed = false;
+                for (int i = 0; i < 5; ++i)
+                {
+                    juce::String enableID = "eq_enable_band" + juce::String(i);
+                    if (auto* enableParam = dynamic_cast<juce::AudioParameterBool*>(
+                        audioProcessor.getValueTreeState().getParameter(enableID)))
+                    {
+                        enableParam->setValueNotifyingHost(savedEnableStates[i]);
                     }
                 }
             }
@@ -813,12 +885,13 @@ void VaclisDynamicEQAudioProcessorEditor::resized()
     auto vtrArea = bounds.removeFromBottom(60);
     auto vtrControlsArea = vtrArea.reduced(10);
     
-    // VTR button (left side)
-    auto vtrButtonArea = vtrControlsArea.removeFromLeft(200);
-    loadReferenceButton.setBounds(vtrButtonArea.reduced(5));
+    // Center the VTR button
+    const int buttonWidth = 250;
+    auto vtrButtonArea = vtrControlsArea.withSizeKeepingCentre(buttonWidth, 40);
+    loadReferenceButton.setBounds(vtrButtonArea);
     
-    // VTR status (remaining area)
-    auto vtrStatusArea = vtrControlsArea;
+    // VTR status (below button)
+    auto vtrStatusArea = vtrControlsArea.removeFromBottom(20);
     vtrStatusLabel.setBounds(vtrStatusArea);
     
     // Old spectrum display not used in new design (keep hidden)

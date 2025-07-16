@@ -28,6 +28,8 @@ public:
     void setupComponents();
     void updateFilterTypeButtonStates(int filterType);
     void handleSoloButtonClick();
+    static std::array<bool, 5> savedEnableStates; // Store EN states before solo
+    static bool anySoloed; // Track if any band is currently soloed
     
 private:
     int bandIndex;
