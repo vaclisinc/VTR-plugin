@@ -44,7 +44,8 @@ void BandControlComponent::setupComponents()
     soloButton.setToggleable(true);
     soloButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::yellow);
     soloButton.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-    soloButton.setClickingTogglesState(true);
+    soloButton.setClickingTogglesState(false); // We'll handle the toggle manually
+    soloButton.onClick = [this]() { handleSoloButtonClick(); };
     addAndMakeVisible(soloButton);
     
     // EQ sliders
@@ -104,8 +105,9 @@ void BandControlComponent::setupComponents()
     enableAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
         audioProcessor.getValueTreeState(), "eq_enable_band" + bandSuffix, enableButton);
     
-    soloAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-        audioProcessor.getValueTreeState(), "eq_solo_band" + bandSuffix, soloButton);
+    // Don't create attachment for solo button as we handle it manually
+    // soloAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+    //     audioProcessor.getValueTreeState(), "eq_solo_band" + bandSuffix, soloButton);
     
     // Initialize filter type button state from current parameter value
     juce::String typeParamID = "eq_type_band" + bandSuffix;
@@ -113,6 +115,14 @@ void BandControlComponent::setupComponents()
     {
         int currentFilterType = static_cast<int>(typeParam->getValue() * 4.0f + 0.5f); // 5 types: 0-4
         updateFilterTypeButtonStates(currentFilterType);
+    }
+    
+    // Initialize solo button state
+    juce::String soloParamID = "eq_solo_band" + bandSuffix;
+    if (auto* soloParam = dynamic_cast<juce::AudioParameterBool*>(
+        audioProcessor.getValueTreeState().getParameter(soloParamID)))
+    {
+        soloButton.setToggleState(soloParam->get(), juce::dontSendNotification);
     }
     
     // Remove async call that could cause crashes during destruction
@@ -188,6 +198,44 @@ void BandControlComponent::updateFilterTypeButtonStates(int filterType)
             );
             filterTypeButtons[filterType].button->repaint();
         }
+    }
+}
+
+void BandControlComponent::handleSoloButtonClick()
+{
+    // Get current solo state of this band
+    juce::String soloParamID = "eq_solo_band" + juce::String(bandIndex);
+    bool willBeSoloed = false;
+    
+    if (auto* soloParam = dynamic_cast<juce::AudioParameterBool*>(
+        audioProcessor.getValueTreeState().getParameter(soloParamID)))
+    {
+        willBeSoloed = !soloParam->get();
+        
+        // Toggle this band's solo state
+        soloParam->setValueNotifyingHost(willBeSoloed);
+        
+        // Handle exclusive solo behavior
+        if (willBeSoloed)
+        {
+            // Save current enable states and disable other bands
+            for (int i = 0; i < 5; ++i)
+            {
+                if (i != bandIndex)
+                {
+                    juce::String otherSoloID = "eq_solo_band" + juce::String(i);
+                    if (auto* otherSoloParam = dynamic_cast<juce::AudioParameterBool*>(
+                        audioProcessor.getValueTreeState().getParameter(otherSoloID)))
+                    {
+                        // Turn off other solos
+                        otherSoloParam->setValueNotifyingHost(false);
+                    }
+                }
+            }
+        }
+        
+        // Update button visual state
+        soloButton.setToggleState(willBeSoloed, juce::dontSendNotification);
     }
 }
 

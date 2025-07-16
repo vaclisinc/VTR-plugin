@@ -27,6 +27,7 @@ public:
     // Setup and management
     void setupComponents();
     void updateFilterTypeButtonStates(int filterType);
+    void handleSoloButtonClick();
     
 private:
     int bandIndex;
