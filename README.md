@@ -25,6 +25,12 @@ An dynamic EQ plugin integrating AI-powered Tone Replication model ([VTR](https:
    - **AU**: `~/Library/Audio/Plug-Ins/Components/`
 3. Restart your DAW and scan for new plugins
 
+#### macOS Security Note
+If you get a "malicious software" warning on macOS, you can solve by:
+1. **System Preferences**: System Preferences → Security & Privacy → Allow the blocked plugin  
+2. **Terminal command**: `sudo xattr -rd com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/VTR-smartEQ.vst3` / `sudo xattr -rd com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/VTR-smartEQ.component`
+
+
 ## Usage Instructions
 
 ### Using VTR (Vaclis Tone Replication)
