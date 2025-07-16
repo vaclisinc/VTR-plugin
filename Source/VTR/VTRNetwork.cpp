@@ -58,18 +58,10 @@ std::vector<float> VTRNetwork::predict(const std::vector<float>& features)
     // Layer 3: Linear (output layer, no activation)
     auto output = layer3_->forward(layer2Activated);
     
-    // Convert model output to dB gains
-    // If your model was trained with linear gains or other scaling, convert here
+    // The model already outputs dB values directly, no conversion needed
+    // Just clamp to reasonable EQ gain range (-20 to +20 dB)
     for (auto& gain : output)
     {
-        // Option 1: If model outputs linear gain, convert to dB
-        // gain = 20.0f * std::log10(std::max(gain, 1e-6f));
-        
-        // Option 2: If model outputs raw values, scale to reasonable range
-        // Adjust this scaling factor based on your training data range
-        gain = gain * 0.05f; // Scale down to match expected dB range
-        
-        // Clamp to reasonable EQ gain range (-20 to +20 dB)
         gain = std::max(-20.0f, std::min(20.0f, gain));
     }
     

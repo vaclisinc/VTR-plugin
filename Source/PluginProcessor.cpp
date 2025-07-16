@@ -83,6 +83,53 @@ VaclisDynamicEQAudioProcessor::VaclisDynamicEQAudioProcessor()
     // Initialize VTR system
     vtrThreadPool = std::make_unique<juce::ThreadPool>(1); // Single thread for VTR processing
     
+    // Load VTR model
+    juce::File pluginDir = juce::File::getSpecialLocation(juce::File::currentExecutableFile).getParentDirectory();
+    juce::File modelFile = pluginDir.getChildFile("vtr-model/exported_model/model_weights.json");
+    juce::File scalerFile = pluginDir.getChildFile("vtr-model/exported_model/scaler_params.json");
+    
+    // Try multiple locations for the model files
+    if (!modelFile.existsAsFile())
+    {
+        // Try relative to plugin bundle
+        juce::File bundleDir = juce::File::getSpecialLocation(juce::File::currentApplicationFile);
+        modelFile = bundleDir.getParentDirectory().getParentDirectory().getParentDirectory()
+                            .getChildFile("vtr-model/exported_model/model_weights.json");
+        scalerFile = bundleDir.getParentDirectory().getParentDirectory().getParentDirectory()
+                             .getChildFile("vtr-model/exported_model/scaler_params.json");
+    }
+    
+    // Try in user documents
+    if (!modelFile.existsAsFile())
+    {
+        juce::File documentsDir = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory);
+        modelFile = documentsDir.getChildFile("VTR-plugin/vtr-model/exported_model/model_weights.json");
+        scalerFile = documentsDir.getChildFile("VTR-plugin/vtr-model/exported_model/scaler_params.json");
+    }
+    
+    // Try absolute path as fallback
+    if (!modelFile.existsAsFile())
+    {
+        modelFile = juce::File("/Users/vaclis./Documents/project/VTR-plugin/vtr-model/exported_model/model_weights.json");
+        scalerFile = juce::File("/Users/vaclis./Documents/project/VTR-plugin/vtr-model/exported_model/scaler_params.json");
+    }
+    
+    if (modelFile.existsAsFile() && scalerFile.existsAsFile())
+    {
+        if (loadVTRModel(modelFile.getFullPathName(), scalerFile.getFullPathName()))
+        {
+            juce::Logger::writeToLog("VTR model loaded successfully from: " + modelFile.getFullPathName());
+        }
+        else
+        {
+            juce::Logger::writeToLog("Failed to load VTR model");
+        }
+    }
+    else
+    {
+        juce::Logger::writeToLog("VTR model files not found. Looked in: " + modelFile.getFullPathName());
+    }
+    
     // Parameter system initialized successfully
 }
 
@@ -737,11 +784,58 @@ void VaclisDynamicEQAudioProcessor::processReferenceAudioFile(const juce::File& 
                     audioData[i] = audioBuffer.getSample(0, i);
                 }
                 
+                juce::Logger::writeToLog("VTR: Audio data size: " + juce::String(audioData.size()) + " samples (" + 
+                                       juce::String(audioData.size() / sampleRate) + " seconds)");
+                
                 // Extract features using SpectrumAnalyzer
+                juce::Logger::writeToLog("VTR: Starting feature extraction...");
+                
+                // Log current backend
+                auto backend = processor_->spectrumAnalyzer.getFeatureExtractionBackend();
+                juce::String backendName = "Unknown";
+                switch (backend)
+                {
+                    case SpectrumAnalyzer::FeatureExtractionBackend::JUCE_BASED:
+                        backendName = "JUCE";
+                        break;
+                    case SpectrumAnalyzer::FeatureExtractionBackend::PYTHON_LIBROSA:
+                        backendName = "Python Librosa";
+                        break;
+                    case SpectrumAnalyzer::FeatureExtractionBackend::LIBXTRACT_BASED:
+                        backendName = "LibXtract";
+                        break;
+                    default:
+                        break;
+                }
+                juce::Logger::writeToLog("VTR: Using backend: " + backendName);
+                
                 auto features = processor_->spectrumAnalyzer.extractFeatures(audioData, sampleRate);
+                juce::Logger::writeToLog("VTR: Feature extraction complete, got " + juce::String(features.size()) + " features");
+                
+                // Log first few features for debugging
+                if (features.size() >= 5)
+                {
+                    juce::Logger::writeToLog("VTR: First 5 features: " + 
+                        juce::String(features[0]) + ", " +
+                        juce::String(features[1]) + ", " +
+                        juce::String(features[2]) + ", " +
+                        juce::String(features[3]) + ", " +
+                        juce::String(features[4]));
+                }
                 
                 // Run VTR prediction
                 auto predictions = processor_->vtrNetwork.predict(features);
+                
+                // Log predictions
+                if (predictions.size() >= 5)
+                {
+                    juce::Logger::writeToLog("VTR Predictions: " +
+                        juce::String(predictions[0]) + " dB, " +
+                        juce::String(predictions[1]) + " dB, " +
+                        juce::String(predictions[2]) + " dB, " +
+                        juce::String(predictions[3]) + " dB, " +
+                        juce::String(predictions[4]) + " dB");
+                }
                 
                 // Apply predictions to EQ parameters
                 processor_->applyVTRPredictions(predictions);

@@ -9,6 +9,8 @@
 #include "VTR/EssentiaFeatureExtractor.h"
 #endif
 
+#include "VTR/FeatureExtractor.h"
+
 class SpectrumAnalyzer
 {
 public:
@@ -57,7 +59,9 @@ public:
     enum class FeatureExtractionBackend
     {
         JUCE_BASED,
-        ESSENTIA_BASED
+        ESSENTIA_BASED,
+        LIBXTRACT_BASED,
+        PYTHON_LIBROSA
     };
     
     void setFeatureExtractionBackend(FeatureExtractionBackend backend);
@@ -107,11 +111,14 @@ private:
     
     // Feature extraction backend
 #ifdef HAVE_ESSENTIA
-    FeatureExtractionBackend currentBackend = FeatureExtractionBackend::ESSENTIA_BASED;
+    FeatureExtractionBackend currentBackend = FeatureExtractionBackend::PYTHON_LIBROSA;
     std::unique_ptr<EssentiaFeatureExtractor> essentiaExtractor;
 #else
-    FeatureExtractionBackend currentBackend = FeatureExtractionBackend::JUCE_BASED;
+    FeatureExtractionBackend currentBackend = FeatureExtractionBackend::PYTHON_LIBROSA;
 #endif
+    
+    // Feature extractor for backend switching
+    std::unique_ptr<FeatureExtractor> featureExtractor;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SpectrumAnalyzer)
 };

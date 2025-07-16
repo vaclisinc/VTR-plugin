@@ -1,3 +1,6 @@
 [submodule "third-party/chowdsp_utils"]
 	path = third-party/chowdsp_utils
 	url = https://github.com/Chowdhury-DSP/chowdsp_utils.git
+[submodule "third-party/libxtract"]
+	path = third-party/libxtract
+	url = https://github.com/jamiebullock/LibXtract.git

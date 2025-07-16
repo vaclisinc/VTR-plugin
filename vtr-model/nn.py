@@ -8,8 +8,8 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 
 # === Step 1: Load Data ===
-features_df = pd.read_csv("audio_features.csv")
-labels_df = pd.read_csv("dataset_labels.csv")
+features_df = pd.read_csv("dataset_librosa_features.csv")
+labels_df = pd.read_csv("dataset_librosa_labels.csv")
 merged_df = pd.merge(features_df, labels_df, on="file")
 
 # === Step 2: Prepare Input (X) and Output (y) ===

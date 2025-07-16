@@ -1,4 +1,5 @@
 #include "SpectrumAnalyzer.h"
+#include <thread>
 
 SpectrumAnalyzer::SpectrumAnalyzer()
     : fft(FFT_ORDER)
@@ -26,6 +27,12 @@ SpectrumAnalyzer::SpectrumAnalyzer()
 #ifdef HAVE_ESSENTIA
     essentiaExtractor = std::make_unique<EssentiaFeatureExtractor>();
 #endif
+    
+    // Initialize feature extractor 
+    featureExtractor = std::make_unique<FeatureExtractor>();
+    
+    // Initialize with JUCE backend first for immediate availability
+    featureExtractor->initialize(44100.0, FFT_SIZE, FeatureExtractor::Backend::JUCE_BASED);
 }
 
 void SpectrumAnalyzer::prepare(double sampleRateToUse, int samplesPerBlock)
@@ -55,6 +62,24 @@ void SpectrumAnalyzer::prepare(double sampleRateToUse, int samplesPerBlock)
         essentiaExtractor->prepare(sampleRateToUse);
     }
 #endif
+    
+    // Initialize feature extractor with current sample rate
+    if (featureExtractor)
+    {
+        FeatureExtractor::Backend backend = FeatureExtractor::Backend::JUCE_BASED;
+        
+        if (currentBackend == FeatureExtractionBackend::LIBXTRACT_BASED)
+        {
+            backend = FeatureExtractor::Backend::LIBXTRACT_BASED;
+        }
+        else if (currentBackend == FeatureExtractionBackend::PYTHON_LIBROSA)
+        {
+            backend = FeatureExtractor::Backend::PYTHON_LIBROSA;
+            std::cout << "SpectrumAnalyzer: Requesting Python backend initialization..." << std::endl;
+        }
+        
+        featureExtractor->initialize(sampleRateToUse, FFT_SIZE, backend);
+    }
 }
 
 void SpectrumAnalyzer::processBlock(const juce::AudioBuffer<float>& inputBuffer, const juce::AudioBuffer<float>& outputBuffer)
@@ -221,6 +246,14 @@ std::vector<float> SpectrumAnalyzer::getOutputSpectrum() const
 // VTR3 Feature extraction methods
 std::vector<float> SpectrumAnalyzer::extractFeatures(const std::vector<float>& audioData, double sampleRate)
 {
+    // Use the FeatureExtractor which supports Python backend
+    if (featureExtractor)
+    {
+        std::cout << "SpectrumAnalyzer: Using FeatureExtractor backend" << std::endl;
+        juce::Logger::writeToLog("SpectrumAnalyzer: Using FeatureExtractor (with Python support)");
+        return featureExtractor->extractFeatures(audioData);
+    }
+    
     // Use Essentia-based feature extraction if available
 #ifdef HAVE_ESSENTIA
     if (currentBackend == FeatureExtractionBackend::ESSENTIA_BASED && essentiaExtractor)
@@ -285,7 +318,17 @@ std::vector<float> SpectrumAnalyzer::extractFeatures(const std::vector<float>& a
         allSpectralRolloffs.push_back(rolloff);
         
         // Extract MFCC for this frame
-        std::vector<float> mfccFrame = extractMFCC(powerSpectrum, sampleRate);
+        std::vector<float> mfccFrame;
+        if (currentBackend == FeatureExtractionBackend::LIBXTRACT_BASED && featureExtractor)
+        {
+            // Use LibXtract approach via FeatureExtractor
+            mfccFrame = featureExtractor->extractMFCC(frame, NUM_MFCC_COEFFS);
+        }
+        else
+        {
+            // Use traditional approach with power spectrum
+            mfccFrame = extractMFCC(powerSpectrum, sampleRate);
+        }
         allMFCCFrames.push_back(mfccFrame);
     }
     
@@ -345,6 +388,26 @@ std::vector<float> SpectrumAnalyzer::extractFeatures(const std::vector<float>& a
 
 std::vector<float> SpectrumAnalyzer::extractMFCC(const std::vector<float>& powerSpectrum, double sampleRate)
 {
+    // Use LibXtract backend if selected
+    if (currentBackend == FeatureExtractionBackend::LIBXTRACT_BASED && featureExtractor)
+    {
+        // Convert power spectrum to audio data (approximation for compatibility)
+        std::vector<float> audioData(powerSpectrum.size() * 2);
+        for (size_t i = 0; i < powerSpectrum.size(); ++i) {
+            audioData[i] = std::sqrt(powerSpectrum[i]); // Convert power to magnitude
+        }
+        return featureExtractor->extractMFCC(audioData, NUM_MFCC_COEFFS);
+    }
+    
+#ifdef HAVE_ESSENTIA
+    // Use Essentia backend if selected and available
+    if (currentBackend == FeatureExtractionBackend::ESSENTIA_BASED && essentiaExtractor)
+    {
+        return essentiaExtractor->extractMFCC(powerSpectrum, sampleRate);
+    }
+#endif
+    
+    // Default to JUCE-based implementation
     // Compute mel filterbank energies
     std::vector<float> melEnergies = computeMelFilterbank(powerSpectrum, sampleRate);
     
@@ -366,8 +429,9 @@ float SpectrumAnalyzer::extractSpectralCentroid(const std::vector<float>& powerS
     for (size_t i = 1; i < powerSpectrum.size(); ++i) // Start from 1 to skip DC
     {
         // Convert bin index to frequency - librosa uses: freq = i * sr / n_fft
-        // powerSpectrum.size() should be FFT_SIZE/2 + 1 = 1025 for FFT_SIZE=2048
-        double frequency = (i * sampleRate) / FFT_SIZE;
+        // For power spectrum size N, the FFT size is 2 * (N - 1)
+        int fftSize = 2 * (powerSpectrum.size() - 1);
+        double frequency = (i * sampleRate) / fftSize;
         
         // Weight by power and frequency
         double power = powerSpectrum[i];
@@ -390,7 +454,9 @@ float SpectrumAnalyzer::extractSpectralBandwidth(const std::vector<float>& power
     for (size_t i = 1; i < powerSpectrum.size(); ++i) // Start from 1 to skip DC
     {
         // Convert bin index to frequency - librosa uses: freq = i * sr / n_fft
-        double frequency = (i * sampleRate) / FFT_SIZE;
+        // For power spectrum size N, the FFT size is 2 * (N - 1)
+        int fftSize = 2 * (powerSpectrum.size() - 1);
+        double frequency = (i * sampleRate) / fftSize;
         
         // Calculate variance from centroid
         double power = powerSpectrum[i];
@@ -426,7 +492,9 @@ float SpectrumAnalyzer::extractSpectralRolloff(const std::vector<float>& powerSp
         if (cumulativeEnergy >= energyThreshold)
         {
             // Convert bin index to frequency - librosa uses: freq = i * sr / n_fft
-            double frequency = (i * sampleRate) / FFT_SIZE;
+            // For power spectrum size N, the FFT size is 2 * (N - 1)
+            int fftSize = 2 * (powerSpectrum.size() - 1);
+            double frequency = (i * sampleRate) / fftSize;
             return static_cast<float>(frequency);
         }
     }
@@ -476,9 +544,11 @@ std::vector<float> SpectrumAnalyzer::computeMelFilterbank(const std::vector<floa
         float rightFreq = invMelScale(rightMel);
         
         // Convert frequencies to bin indices - librosa uses: bin = freq * n_fft / sr
-        int leftBin = static_cast<int>((leftFreq * FFT_SIZE) / sampleRate);
-        int centerBin = static_cast<int>((centerFreq * FFT_SIZE) / sampleRate);
-        int rightBin = static_cast<int>((rightFreq * FFT_SIZE) / sampleRate);
+        // For power spectrum size N, the FFT size is 2 * (N - 1)
+        int fftSize = 2 * (powerSpectrum.size() - 1);
+        int leftBin = static_cast<int>((leftFreq * fftSize) / sampleRate);
+        int centerBin = static_cast<int>((centerFreq * fftSize) / sampleRate);
+        int rightBin = static_cast<int>((rightFreq * fftSize) / sampleRate);
         
         // Ensure bins are within bounds
         leftBin = std::max(0, std::min(leftBin, static_cast<int>(powerSpectrum.size()) - 1));
@@ -566,6 +636,14 @@ std::vector<float> SpectrumAnalyzer::computePowerSpectrum(const std::vector<floa
     std::vector<float> paddedData = audioData;
     paddedData.resize(FFT_SIZE, 0.0f);
     
+    // Calculate Hann window sum for normalization (librosa compatibility)
+    float windowSum = 0.0f;
+    for (int i = 0; i < FFT_SIZE; ++i)
+    {
+        const float windowValue = 0.5f * (1.0f - std::cos(2.0f * juce::MathConstants<float>::pi * i / (FFT_SIZE - 1)));
+        windowSum += windowValue;
+    }
+    
     // Apply Hann window
     applyHannWindow(paddedData);
     
@@ -583,13 +661,18 @@ std::vector<float> SpectrumAnalyzer::computePowerSpectrum(const std::vector<floa
     
     // Convert to power spectrum (magnitude squared)
     // JUCE's performFrequencyOnlyForwardTransform returns magnitude values
-    // For librosa compatibility, we need magnitude squared (power)
+    // For librosa compatibility, we need magnitude squared (power) with proper normalization
     std::vector<float> powerSpectrum(FFT_SIZE / 2 + 1);  // +1 for DC and Nyquist
+    
+    // Normalization factor for Hann window: 2 / windowSum (factor of 2 for one-sided spectrum)
+    const float normalizationFactor = 2.0f / windowSum;
+    
     for (int i = 0; i < FFT_SIZE / 2 + 1; ++i)
     {
         if (i < FFT_SIZE / 2)
         {
-            powerSpectrum[i] = fftData[i] * fftData[i];  // magnitude^2 = power
+            float magnitude = fftData[i] * normalizationFactor;
+            powerSpectrum[i] = magnitude * magnitude;  // magnitude^2 = power
         }
         else
         {
@@ -652,9 +735,26 @@ void SpectrumAnalyzer::setFeatureUpdateRate(float rateHz)
 
 void SpectrumAnalyzer::setFeatureExtractionBackend(FeatureExtractionBackend backend)
 {
-#ifdef HAVE_ESSENTIA
     currentBackend = backend;
     
+    // Update feature extractor backend
+    if (featureExtractor)
+    {
+        FeatureExtractor::Backend extractorBackend = FeatureExtractor::Backend::JUCE_BASED;
+        
+        if (backend == FeatureExtractionBackend::LIBXTRACT_BASED)
+        {
+            extractorBackend = FeatureExtractor::Backend::LIBXTRACT_BASED;
+        }
+        else if (backend == FeatureExtractionBackend::PYTHON_LIBROSA)
+        {
+            extractorBackend = FeatureExtractor::Backend::PYTHON_LIBROSA;
+        }
+        
+        featureExtractor->setBackend(extractorBackend);
+    }
+    
+#ifdef HAVE_ESSENTIA
     // Initialize Essentia extractor if switching to Essentia backend
     if (backend == FeatureExtractionBackend::ESSENTIA_BASED && !essentiaExtractor)
     {
@@ -662,8 +762,11 @@ void SpectrumAnalyzer::setFeatureExtractionBackend(FeatureExtractionBackend back
         essentiaExtractor->prepare(sampleRate);
     }
 #else
-    // Force JUCE backend if Essentia not available
-    currentBackend = FeatureExtractionBackend::JUCE_BASED;
+    // Force JUCE backend if Essentia not available and not LibXtract
+    if (backend == FeatureExtractionBackend::ESSENTIA_BASED)
+    {
+        currentBackend = FeatureExtractionBackend::JUCE_BASED;
+    }
     juce::ignoreUnused(backend);
 #endif
 }

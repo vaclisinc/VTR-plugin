@@ -666,7 +666,7 @@ void VaclisDynamicEQAudioProcessorEditor::paint (juce::Graphics& g)
     // Draw the plugin name and version
     g.setColour (juce::Colours::white);
     g.setFont (20.0f);
-    g.drawFittedText ("Dynamic EQ - Step 9: Draggable EQ Points", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
+    g.drawFittedText ("VTR-smartEQ", getLocalBounds().removeFromTop(60), juce::Justification::centred, 1);
     
     g.setFont (12.0f);
     g.setColour (juce::Colours::lightgrey);
@@ -932,55 +932,9 @@ void VaclisDynamicEQAudioProcessorEditor::applyVTRSettingsFromProcessing()
         return;
     }
     
-    // DEBUG: Test with known training data to see if model works
-    std::vector<float> testFeatures = {
-        0.1f, 1500.0f, 0.5f, -0.2f, 0.8f, -0.1f, 0.4f, 
-        -0.3f, 0.2f, -0.1f, 0.1f, 0.0f, -0.2f, 0.1f, 
-        0.3f, 800.0f, 0.7f  // 17 features total
-    };
-    
-    // Try to get actual VTR predictions (for now, use mock values)
-    std::vector<float> vtrGains = {-2.5f, 1.8f, -1.2f, 3.1f, -0.8f};
-    
-    // DEBUG: Try to use actual VTR network if available
-    if (audioProcessor.getVTRNetwork().isModelLoaded())
-    {
-        auto predictions = audioProcessor.getVTRNetwork().predict(testFeatures);
-        if (predictions.size() == 5)
-        {
-            vtrGains = predictions;
-            juce::Logger::writeToLog("Using actual VTR predictions: " + 
-                juce::String(vtrGains[0]) + ", " + juce::String(vtrGains[1]) + ", " + 
-                juce::String(vtrGains[2]) + ", " + juce::String(vtrGains[3]) + ", " + 
-                juce::String(vtrGains[4]));
-        }
-        else
-        {
-            juce::Logger::writeToLog("VTR prediction failed, using mock values");
-        }
-    }
-    else
-    {
-        juce::Logger::writeToLog("VTR model not loaded, using mock values");
-    }
-    
-    // Apply gains to all 5 bands
-    for (int band = 0; band < 5; ++band)
-    {
-        juce::String gainParamID = "eq_gain_band" + juce::String(band);
-        if (auto* gainParam = audioProcessor.getValueTreeState().getParameter(gainParamID))
-        {
-            float clampedGain = juce::jlimit(-20.0f, 20.0f, vtrGains[band]);
-            gainParam->setValueNotifyingHost(gainParam->convertTo0to1(clampedGain));
-        }
-        
-        // Enable each band to show the applied gain
-        juce::String enableParamID = "eq_enable_band" + juce::String(band);
-        if (auto* enableParam = audioProcessor.getValueTreeState().getParameter(enableParamID))
-        {
-            enableParam->setValueNotifyingHost(1.0f); // Enable the band
-        }
-    }
-    
-    vtrStatusLabel.setText("VTR Applied Successfully - Ready for New Reference", juce::dontSendNotification);
+    // The VTR predictions have already been applied in the background thread
+    // (see PluginProcessor::applyVTRPredictions)
+    // Just update the UI status
+    vtrStatusLabel.setText("VTR Applied", juce::dontSendNotification);
+    loadReferenceButton.setEnabled(true);
 }
