@@ -80,3 +80,15 @@ JuceLibraryCode/
 *.gcov
 *.gcda
 *.gcno
+
+# Standalone extractor specific
+standalone_extractor/venv*/
+standalone_extractor/build/
+standalone_extractor/dist/
+standalone_extractor/__pycache__/
+standalone_extractor/*.pyc
+standalone_extractor/*.pyo
+standalone_extractor/*.pyd
+standalone_extractor/*.so
+standalone_extractor/*.spec
+!standalone_extractor/vtr-feature-extractor.spec
